@@ -1,6 +1,6 @@
-// En Expo Go el celular no puede usar "localhost": definir EXPO_PUBLIC_API_URL
-// con la IP de la PC en la red local (ver mobile/.env.example).
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+// La URL del back se define en mobile/.env.local (ver mobile/.env.example).
+// Emulador Android: http://10.0.2.2:3000 | Celular físico: IP de la PC en la red.
+export const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export class ApiError extends Error {
   constructor(
@@ -24,11 +24,31 @@ export async function request<T>(
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (usuarioId) headers['x-usuario-id'] = usuarioId;
 
-  const res = await fetch(`${API_URL}${path}`, {
+  if (!API_URL) {
+    throw new ApiError(0, 'Falta definir EXPO_PUBLIC_API_URL en mobile/.env.local');
+  }
+
+let res: Response;
+
+const controller = new AbortController();
+const timeout = setTimeout(() => controller.abort(), 5000);
+
+try {
+  res = await fetch(`${API_URL}${path}`, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: controller.signal,
   });
+} catch {
+  if (controller.signal.aborted) {
+    throw new ApiError(0, 'El servidor no respondió a tiempo.');
+  }
+
+  throw new ApiError(0, `No se pudo conectar con el servidor (${API_URL})`);
+} finally {
+  clearTimeout(timeout);
+}
 
   const texto = await res.text();
   const data = texto ? JSON.parse(texto) : undefined;

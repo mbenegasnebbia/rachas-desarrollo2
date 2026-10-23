@@ -282,6 +282,10 @@ export class DesafiosService {
   }
 
   async join(codigo: string, usuarioId: string) {
+    if (!/^[A-Fa-f0-9]{6}$/.test(codigo)) {
+      throw new BadRequestException('Código de invitación inválido');
+    }
+
     if (!usuarioId || !Types.ObjectId.isValid(usuarioId)) {
       throw new BadRequestException('ID de usuario inválido');
     }

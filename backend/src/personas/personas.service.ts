@@ -45,18 +45,19 @@ export class PersonasService {
   }
 
   // Obtener una persona por ID
-  async findOne(id: string) {
-    const persona = await this.personaModel.findById(id);
-
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID inválido');
-    }
-    if (!persona) {
-      throw new NotFoundException('Persona no encontrada');
-    }
-
-    return persona;
+async findOne(id: string) {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new BadRequestException('ID inválido');
   }
+
+  const persona = await this.personaModel.findById(id);
+
+  if (!persona) {
+    throw new NotFoundException('Persona no encontrada');
+  }
+  
+  return persona;
+}
 
   async update(id: string, datos: UpdatePersonaDto) {
   if (!Types.ObjectId.isValid(id)) {

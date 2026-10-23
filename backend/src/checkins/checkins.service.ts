@@ -27,6 +27,20 @@ export class CheckinsService {
     private personaModel: Model<Persona>,
   ) {}
 
+  private obtenerHoy(zonaHoraria: string): string {
+    const partes = new Intl.DateTimeFormat('en-US', {
+      timeZone: zonaHoraria,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+
+    const obtener = (tipo: string) =>
+      partes.find((parte) => parte.type === tipo)!.value;
+
+    return `${obtener('year')}-${obtener('month')}-${obtener('day')}`;
+  }
+
   async create(
     desafioId: string,
     usuarioId: string,
@@ -39,6 +53,24 @@ export class CheckinsService {
       !Types.ObjectId.isValid(desafioId)
     ) {
       throw new BadRequestException('ID inválido');
+    }
+
+    if (
+      typeof datos.fecha !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha)
+    ) {
+      throw new BadRequestException(
+        'La fecha debe tener formato YYYY-MM-DD',
+      );
+    }
+
+    const fechaValidada = new Date(`${datos.fecha}T00:00:00Z`);
+
+    if (
+      Number.isNaN(fechaValidada.getTime()) ||
+      fechaValidada.toISOString().slice(0, 10) !== datos.fecha
+    ) {
+      throw new BadRequestException('Fecha inválida');
     }
 
     // 2. Buscar persona y desafío
@@ -61,14 +93,8 @@ export class CheckinsService {
     }
 
     // 4. Obtener hoy y ayer en la zona horaria de la persona
-    const zonaHoraria = persona.zonaHoraria;
-
-    const hoy = new Intl.DateTimeFormat('en-CA', {
-      timeZone: zonaHoraria,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date());
+// 4. Obtener hoy y ayer en la zona horaria de la persona
+    const hoy = this.obtenerHoy(persona.zonaHoraria);
 
     const ayerFecha = new Date(`${hoy}T00:00:00Z`);
     ayerFecha.setUTCDate(ayerFecha.getUTCDate() - 1);
@@ -89,16 +115,6 @@ export class CheckinsService {
       throw new BadRequestException(
         'Solo podés registrar un check-in de hoy o ayer',
       );
-    }
-
-    // Verificar que sea una fecha real
-    const fecha = new Date(`${datos.fecha}T00:00:00Z`);
-
-    if (
-      isNaN(fecha.getTime()) ||
-      fecha.toISOString().slice(0, 10) !== datos.fecha
-    ) {
-      throw new BadRequestException('Fecha inválida');
     }
 
     // Verificar que esté dentro del desafío
@@ -166,12 +182,7 @@ export class CheckinsService {
   }
 
   // 4. Obtener hoy según la zona horaria de la persona
-  const hoy = new Intl.DateTimeFormat('en-CA', {
-    timeZone: persona.zonaHoraria,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+  const hoy = this.obtenerHoy(persona.zonaHoraria);
 
   // 5. Buscar el último check-in propio en este desafío
   const ultimoCheckin = await this.checkinModel
@@ -179,7 +190,7 @@ export class CheckinsService {
       persona: persona._id,
       desafio: desafio._id,
     })
-    .sort({ fecha: -1, createdAt: -1 });
+    .sort({ fecha: -1 });
 
   if (!ultimoCheckin) {
     throw new NotFoundException('No tenés check-ins en este desafío');
