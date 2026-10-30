@@ -1,5 +1,14 @@
-import { Controller, Post, Get, Patch, Body, Headers, Param, } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Body,
+  Headers,
+  Param,
+} from '@nestjs/common';
 
+import { ListarDesafiosDto } from './dto/listar-desafios.dto';
 import { DesafiosService } from './desafios.service';
 import { CreateDesafioDto } from './dto/create-desafio.dto';
 import { UpdateDesafioDto } from './dto/update-desafio.dto';
@@ -18,11 +27,8 @@ export class DesafiosController {
   }
 
   @Get()
-  findAll(
-    @Query('estado') estado?: string,
-    @Query('categoria') categoria?: string,
-  ) {
-    return this.desafiosService.findAll(estado, categoria);
+  findAll(@Query() query: ListarDesafiosDto) {
+    return this.desafiosService.findAll(query.estado, query.categoria, query);
   }
 
   @Get(':id')
@@ -40,10 +46,7 @@ export class DesafiosController {
   }
 
   @Patch(':id/cancelar')
-  cancel(
-    @Param('id') id: string,
-    @Headers('x-usuario-id') usuarioId: string,
-  ) {
+  cancel(@Param('id') id: string, @Headers('x-usuario-id') usuarioId: string) {
     return this.desafiosService.cancel(id, usuarioId);
   }
 
@@ -56,10 +59,7 @@ export class DesafiosController {
   }
 
   @Post(':id/abandonar')
-  leave(
-    @Param('id') id: string,
-    @Headers('x-usuario-id') usuarioId: string,
-  ) {
+  leave(@Param('id') id: string, @Headers('x-usuario-id') usuarioId: string) {
     return this.desafiosService.leave(id, usuarioId);
   }
 

@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 
+import { ListarCheckinsDto } from './dto/listar-checkins.dto';
 import { CheckinsService } from './checkins.service';
 import { CreateCheckinDto } from './dto/create-checkin.dto';
 
@@ -36,8 +37,12 @@ export class CheckinsController {
   @Get()
   findByPersona(
     @Param('desafioId') desafioId: string,
-    @Query('personaId') personaId: string,
+    @Query() query: ListarCheckinsDto,
   ) {
-    return this.checkinsService.findByPersona(desafioId, personaId);
+    return this.checkinsService.findByPersona(
+      desafioId,
+      query.personaId,
+      query,
+    );
   }
 }

@@ -3,7 +3,6 @@ import { Types } from 'mongoose';
 
 @Schema()
 export class Desafio {
-
   @Prop({ required: true, minlength: 3, maxlength: 60 })
   nombre!: string;
 
@@ -37,7 +36,7 @@ export class Desafio {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Persona' }], default: [] })
   exParticipantes!: Types.ObjectId[];
 
-   /*@Prop({
+  /*@Prop({
     required: false,
     enum: ['PROGRAMADO', 'ACTIVO', 'FINALIZADO', 'CANCELADO'],
   })
@@ -52,7 +51,13 @@ export const DesafioSchema = SchemaFactory.createForClass(Desafio);
 DesafioSchema.set('toJSON', {
   virtuals: true,
   versionKey: false,
-  transform: (_doc, ret: any) => {
-    delete ret._id;
+  transform: (_doc, ret) => {
+    const resultado = { ...ret, id: String(ret._id) } as Record<
+      string,
+      unknown
+    >;
+    delete resultado._id;
+    delete resultado.__v;
+    return resultado;
   },
 });

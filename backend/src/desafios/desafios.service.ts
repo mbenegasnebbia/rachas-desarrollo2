@@ -14,6 +14,7 @@ import { Persona } from '../personas/schemas/persona.schema';
 import { CreateDesafioDto } from './dto/create-desafio.dto';
 import { UpdateDesafioDto } from './dto/update-desafio.dto';
 
+import { PaginacionDto } from '../common/paginacion.dto';
 @Injectable()
 export class DesafiosService {
   constructor(
@@ -33,7 +34,8 @@ export class DesafiosService {
       day: '2-digit',
     }).formatToParts(new Date());
 
-    const valor = (tipo: string) => partes.find((parte) => parte.type === tipo)!.value;
+    const valor = (tipo: string) =>
+      partes.find((parte) => parte.type === tipo)!.value;
     return `${valor('year')}-${valor('month')}-${valor('day')}`;
   }
 
@@ -48,10 +50,13 @@ export class DesafiosService {
     }
 
     if (fin < inicio) {
-      throw new BadRequestException('La fecha de fin debe ser posterior al inicio');
+      throw new BadRequestException(
+        'La fecha de fin debe ser posterior al inicio',
+      );
     }
 
-    const duracion = Math.round((fin.getTime() - inicio.getTime()) / 86400000) + 1;
+    const duracion =
+      Math.round((fin.getTime() - inicio.getTime()) / 86400000) + 1;
     if (duracion < 3 || duracion > 90) {
       throw new BadRequestException('El desafío debe durar entre 3 y 90 días');
     }
@@ -73,7 +78,9 @@ export class DesafiosService {
 
     const hoy = this.obtenerHoy();
     if (this.fechaCalendario(inicio) < hoy) {
-      throw new BadRequestException('La fecha de inicio no puede estar en el pasado');
+      throw new BadRequestException(
+        'La fecha de inicio no puede estar en el pasado',
+      );
     }
 
     const hoyDate = new Date(`${hoy}T00:00:00.000Z`);
@@ -84,14 +91,18 @@ export class DesafiosService {
     });
 
     if (desafiosVigentes >= 5) {
-      throw new ConflictException('La persona ya participa en 5 desafíos vigentes');
+      throw new ConflictException(
+        'La persona ya participa en 5 desafíos vigentes',
+      );
     }
 
     let codigoInvitacion: string;
     let existe: boolean;
     do {
       codigoInvitacion = randomBytes(3).toString('hex').toUpperCase();
-      const desafioExistente = await this.desafioModel.findOne({ codigoInvitacion });
+      const desafioExistente = await this.desafioModel.findOne({
+        codigoInvitacion,
+      });
       existe = !!desafioExistente;
     } while (existe);
 
@@ -106,66 +117,56 @@ export class DesafiosService {
 
     try {
       return await desafio.save();
-    } catch (error: any) {
-      if (error.code === 11000) {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 11000
+      ) {
         throw new ConflictException('El código de invitación ya existe');
       }
       throw error;
     }
   }
 
-  async findAll(estado?: string, categoria?: string) {
-    // Validar filtros
-    const estadosValidos = [
-      'PROGRAMADO',
-      'ACTIVO',
-      'FINALIZADO',
-      'CANCELADO',
-    ];
-
-    const categoriasValidas = [
-      'SALUD',
-      'ESTUDIO',
-      'FINANZAS',
-      'BIENESTAR',
-      'OTRO',
-    ];
-
-    if (estado && !estadosValidos.includes(estado)) {
+  async findAll(
+    estado?: string,
+    categoria?: string,
+    paginacion = new PaginacionDto(),
+  ) {
+    if (
+      estado &&
+      !['PROGRAMADO', 'ACTIVO', 'FINALIZADO', 'CANCELADO'].includes(estado)
+    )
       throw new BadRequestException('Estado inválido');
-    }
-
-    if (categoria && !categoriasValidas.includes(categoria)) {
+    if (
+      categoria &&
+      !['SALUD', 'ESTUDIO', 'FINANZAS', 'BIENESTAR', 'OTRO'].includes(categoria)
+    )
       throw new BadRequestException('Categoría inválida');
-    }
-
-    // Buscar desafíos, filtrando por categoría si corresponde
-    const filtro = categoria ? { categoria } : {};
-
-    const desafios = await this.desafioModel.find(filtro);
-
-    // Obtener la fecha actual
-    const hoy = this.obtenerHoy();
-
-    // Calcular el estado de cada desafío y aplicar el filtro
-    return desafios.filter((desafio) => {
-      const inicio = desafio.fechaInicio.toISOString().slice(0, 10);
-      const fin = desafio.fechaFin.toISOString().slice(0, 10);
-
-      let estadoActual: string;
-
-      if (desafio.cancelado) {
-        estadoActual = 'CANCELADO';
-      } else if (hoy < inicio) {
-        estadoActual = 'PROGRAMADO';
-      } else if (hoy > fin) {
-        estadoActual = 'FINALIZADO';
-      } else {
-        estadoActual = 'ACTIVO';
+    const hoy = new Date(this.obtenerHoy() + 'T00:00:00Z');
+    const manana = new Date(hoy.getTime() + 86400000);
+    const filtro: Record<string, unknown> = categoria ? { categoria } : {};
+    if (estado) {
+      filtro.cancelado = estado === 'CANCELADO';
+      if (estado === 'PROGRAMADO') filtro.fechaInicio = { $gte: manana };
+      if (estado === 'ACTIVO') {
+        filtro.fechaInicio = { $lt: manana };
+        filtro.fechaFin = { $gte: hoy };
       }
-
-      return !estado || estadoActual === estado;
-    });
+      if (estado === 'FINALIZADO') filtro.fechaFin = { $lt: hoy };
+    }
+    const { pagina, limite } = paginacion;
+    const [items, total] = await Promise.all([
+      this.desafioModel
+        .find(filtro)
+        .sort({ _id: -1 })
+        .skip((pagina - 1) * limite)
+        .limit(limite),
+      this.desafioModel.countDocuments(filtro),
+    ]);
+    return { items, total, pagina, limite, paginas: Math.ceil(total / limite) };
   }
 
   async findOne(id: string) {
@@ -181,7 +182,11 @@ export class DesafiosService {
   }
 
   async update(id: string, datos: UpdateDesafioDto, usuarioId: string) {
-    if (!Types.ObjectId.isValid(id) || !usuarioId || !Types.ObjectId.isValid(usuarioId)) {
+    if (
+      !Types.ObjectId.isValid(id) ||
+      !usuarioId ||
+      !Types.ObjectId.isValid(usuarioId)
+    ) {
       throw new BadRequestException('ID inválido');
     }
 
@@ -196,7 +201,9 @@ export class DesafiosService {
     }
 
     if (desafio.creador.toString() !== usuarioId) {
-      throw new ForbiddenException('Solo el creador puede modificar el desafío');
+      throw new ForbiddenException(
+        'Solo el creador puede modificar el desafío',
+      );
     }
 
     const hoy = this.obtenerHoy();
@@ -204,7 +211,9 @@ export class DesafiosService {
     const finActual = this.fechaCalendario(desafio.fechaFin);
 
     if (desafio.cancelado || hoy > finActual) {
-      throw new ConflictException('No se puede modificar un desafío finalizado o cancelado');
+      throw new ConflictException(
+        'No se puede modificar un desafío finalizado o cancelado',
+      );
     }
 
     const cambiaConfiguracion =
@@ -220,17 +229,21 @@ export class DesafiosService {
 
     // Solo validar las fechas cuando realmente se cambian.
     if (datos.fechaInicio !== undefined || datos.fechaFin !== undefined) {
-      const inicio = datos.fechaInicio !== undefined
-        ? new Date(datos.fechaInicio)
-        : desafio.fechaInicio;
-      const fin = datos.fechaFin !== undefined
-        ? new Date(datos.fechaFin)
-        : desafio.fechaFin;
+      const inicio =
+        datos.fechaInicio !== undefined
+          ? new Date(datos.fechaInicio)
+          : desafio.fechaInicio;
+      const fin =
+        datos.fechaFin !== undefined
+          ? new Date(datos.fechaFin)
+          : desafio.fechaFin;
 
       this.validarDuracion(inicio, fin);
 
       if (this.fechaCalendario(inicio) < hoy) {
-        throw new BadRequestException('La fecha de inicio no puede estar en el pasado');
+        throw new BadRequestException(
+          'La fecha de inicio no puede estar en el pasado',
+        );
       }
     }
 
@@ -244,9 +257,12 @@ export class DesafiosService {
     }
 
     if (datos.nombre !== undefined) desafio.nombre = datos.nombre;
-    if (datos.descripcion !== undefined) desafio.descripcion = datos.descripcion;
-    if (datos.fechaInicio !== undefined) desafio.fechaInicio = new Date(datos.fechaInicio);
-    if (datos.fechaFin !== undefined) desafio.fechaFin = new Date(datos.fechaFin);
+    if (datos.descripcion !== undefined)
+      desafio.descripcion = datos.descripcion;
+    if (datos.fechaInicio !== undefined)
+      desafio.fechaInicio = new Date(datos.fechaInicio);
+    if (datos.fechaFin !== undefined)
+      desafio.fechaFin = new Date(datos.fechaFin);
     if (datos.maxParticipantes !== undefined) {
       desafio.maxParticipantes = datos.maxParticipantes;
     }
@@ -255,7 +271,11 @@ export class DesafiosService {
   }
 
   async cancel(id: string, usuarioId: string) {
-    if (!Types.ObjectId.isValid(id) || !usuarioId || !Types.ObjectId.isValid(usuarioId)) {
+    if (
+      !Types.ObjectId.isValid(id) ||
+      !usuarioId ||
+      !Types.ObjectId.isValid(usuarioId)
+    ) {
       throw new BadRequestException('ID inválido');
     }
 
@@ -273,8 +293,13 @@ export class DesafiosService {
       throw new ForbiddenException('Solo el creador puede cancelar el desafío');
     }
 
-    if (desafio.cancelado || this.obtenerHoy() > this.fechaCalendario(desafio.fechaFin)) {
-      throw new ConflictException('No se puede cancelar un desafío finalizado o cancelado');
+    if (
+      desafio.cancelado ||
+      this.obtenerHoy() > this.fechaCalendario(desafio.fechaFin)
+    ) {
+      throw new ConflictException(
+        'No se puede cancelar un desafío finalizado o cancelado',
+      );
     }
 
     desafio.cancelado = true;
@@ -282,7 +307,7 @@ export class DesafiosService {
   }
 
   async join(codigo: string, usuarioId: string) {
-    if (!/^[A-Fa-f0-9]{6}$/.test(codigo)) {
+    if (!/^[A-Z0-9]{6}$/i.test(codigo)) {
       throw new BadRequestException('Código de invitación inválido');
     }
 
@@ -295,14 +320,18 @@ export class DesafiosService {
       throw new NotFoundException('Persona no encontrada');
     }
 
-    const desafio = await this.desafioModel.findOne({ codigoInvitacion: codigo });
+    const desafio = await this.desafioModel.findOne({
+      codigoInvitacion: codigo.toUpperCase(),
+    });
     if (!desafio) {
       throw new NotFoundException('Código de invitación no encontrado');
     }
 
     const hoy = this.obtenerHoy();
     if (desafio.cancelado || this.fechaCalendario(desafio.fechaFin) < hoy) {
-      throw new ConflictException('No se puede ingresar a un desafío finalizado o cancelado');
+      throw new ConflictException(
+        'No se puede ingresar a un desafío finalizado o cancelado',
+      );
     }
 
     if (desafio.participantes.some((id) => id.toString() === usuarioId)) {
@@ -310,7 +339,9 @@ export class DesafiosService {
     }
 
     if (desafio.exParticipantes.some((id) => id.toString() === usuarioId)) {
-      throw new ConflictException('No podés volver a un desafío que abandonaste');
+      throw new ConflictException(
+        'No podés volver a un desafío que abandonaste',
+      );
     }
 
     if (desafio.participantes.length >= desafio.maxParticipantes) {
@@ -333,7 +364,11 @@ export class DesafiosService {
   }
 
   async leave(id: string, usuarioId: string) {
-    if (!Types.ObjectId.isValid(id) || !usuarioId || !Types.ObjectId.isValid(usuarioId)) {
+    if (
+      !Types.ObjectId.isValid(id) ||
+      !usuarioId ||
+      !Types.ObjectId.isValid(usuarioId)
+    ) {
       throw new BadRequestException('ID inválido');
     }
 
@@ -348,13 +383,22 @@ export class DesafiosService {
     }
 
     if (desafio.creador.toString() === usuarioId) {
-      throw new ForbiddenException('El creador no puede abandonar su propio desafío');
+      throw new ForbiddenException(
+        'El creador no puede abandonar su propio desafío',
+      );
     }
 
     if (!desafio.participantes.some((id) => id.toString() === usuarioId)) {
       throw new ConflictException('No participás en este desafío');
     }
 
+    if (
+      desafio.cancelado ||
+      this.obtenerHoy() > this.fechaCalendario(desafio.fechaFin)
+    )
+      throw new ConflictException(
+        'No se puede abandonar un desafío finalizado o cancelado',
+      );
     desafio.participantes = desafio.participantes.filter(
       (id) => id.toString() !== usuarioId,
     );
@@ -364,23 +408,23 @@ export class DesafiosService {
   }
 
   async findParticipantes(id: string) {
-  // 1. Validar el ID
-  if (!Types.ObjectId.isValid(id)) {
-    throw new BadRequestException('ID de desafío inválido');
+    // 1. Validar el ID
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('ID de desafío inválido');
+    }
+
+    // 2. Buscar el desafío
+    const desafio = await this.desafioModel.findById(id);
+
+    if (!desafio) {
+      throw new NotFoundException('Desafío no encontrado');
+    }
+
+    // 3. Buscar los datos de sus participantes
+    const participantes = await this.personaModel.find({
+      _id: { $in: desafio.participantes },
+    });
+
+    return participantes;
   }
-
-  // 2. Buscar el desafío
-  const desafio = await this.desafioModel.findById(id);
-
-  if (!desafio) {
-    throw new NotFoundException('Desafío no encontrado');
-  }
-
-  // 3. Buscar los datos de sus participantes
-  const participantes = await this.personaModel.find({
-    _id: { $in: desafio.participantes },
-  });
-
-  return participantes;
-}
 }

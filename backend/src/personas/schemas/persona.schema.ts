@@ -34,7 +34,13 @@ export const PersonaSchema = SchemaFactory.createForClass(Persona);
 PersonaSchema.set('toJSON', {
   virtuals: true,
   versionKey: false,
-  transform: (_doc, ret: any) => {
-    delete ret._id;
+  transform: (_doc, ret) => {
+    const resultado = { ...ret, id: String(ret._id) } as Record<
+      string,
+      unknown
+    >;
+    delete resultado._id;
+    delete resultado.__v;
+    return resultado;
   },
 });

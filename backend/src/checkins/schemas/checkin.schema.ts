@@ -3,7 +3,6 @@ import { Types } from 'mongoose';
 
 @Schema()
 export class Checkin {
-
   @Prop({
     type: Types.ObjectId,
     ref: 'Persona',
@@ -29,6 +28,9 @@ export class Checkin {
   })
   nota?: string;
 
+  @Prop({ default: 0, min: 0 })
+  puntos!: number;
+
   @Prop()
   valor?: number;
 }
@@ -39,19 +41,15 @@ CheckinSchema.set('toJSON', {
   virtuals: true,
   versionKey: false,
   transform: (_doc, ret) => {
-    const resultado: Record<string, any> = { ...ret };
-
-    resultado.id = resultado._id.toString();
-
+    const resultado = { ...ret, id: String(ret._id) } as Record<
+      string,
+      unknown
+    >;
     delete resultado._id;
     delete resultado.__v;
-
     return resultado;
   },
 });
 
 // Un check-in por persona, desafío y día
-CheckinSchema.index(
-  { persona: 1, desafio: 1, fecha: 1 },
-  { unique: true },
-);
+CheckinSchema.index({ persona: 1, desafio: 1, fecha: 1 }, { unique: true });

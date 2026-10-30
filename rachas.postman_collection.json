@@ -1,0 +1,597 @@
+{
+  "info": {
+    "name": "Rachas - Partes I y II",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Ejecutar en orden. Crea dos personas y un desafío de prueba, registra y deshace check-ins y cancela el desafío al terminar. No elimina personas."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Crear persona A",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Argentina usa UTC-3; el sandbox de Newman no dispone de Intl.",
+              "const hoy = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0,10);",
+              "const fin = new Date(hoy + 'T00:00:00Z'); fin.setUTCDate(fin.getUTCDate() + 6);",
+              "pm.collectionVariables.set('hoy', hoy);",
+              "pm.collectionVariables.set('fin', fin.toISOString().slice(0,10));",
+              "pm.collectionVariables.set('run', Date.now().toString(36));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('personaA', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/personas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Prueba Parte II A\",\n  \"alias\": \"p2a_{{run}}\",\n  \"email\": \"p2a_{{run}}@example.com\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "02 Crear persona B",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('personaB', pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/personas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Prueba Parte II B\",\n  \"alias\": \"p2b_{{run}}\",\n  \"email\": \"p2b_{{run}}@example.com\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "03 Crear desafío activo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "const d = pm.response.json(); pm.collectionVariables.set('desafioId',d.id); pm.collectionVariables.set('codigo',d.codigoInvitacion);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Prueba Parte II {{run}}\",\n  \"categoria\": \"ESTUDIO\",\n  \"fechaInicio\": \"{{hoy}}\",\n  \"fechaFin\": \"{{fin}}\",\n  \"maxParticipantes\": 2\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "04 Unir persona B",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaB}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/unirse/{{codigo}}"
+      }
+    },
+    {
+      "name": "05 Unión duplicada",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaB}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/unirse/{{codigo}}"
+      }
+    },
+    {
+      "name": "06 Listado paginado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Listado paginado',()=>{ const d=pm.response.json(); pm.expect(d.items).to.be.an('array'); pm.expect(d.items.length).to.be.at.most(2); pm.expect(d.limite).to.equal(2); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios?pagina=1&limite=2&estado=ACTIVO&categoria=ESTUDIO"
+      }
+    },
+    {
+      "name": "07 Check-in persona A",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "pm.test('Primer check-in vale 10 puntos',()=>pm.expect(pm.response.json().puntos).to.equal(10));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/{{desafioId}}/checkins",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"nota\": \"Prueba de integración\",\n  \"valor\": 30\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "08 Check-in duplicado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/{{desafioId}}/checkins",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "09 Ranking",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('A lidera',()=>{const r=pm.response.json();pm.expect(r.items[0].personaId).to.equal(pm.collectionVariables.get('personaA'));pm.expect(r.items[0].rachaActual).to.equal(1);pm.expect(r.ganador).to.equal(null);});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/{{desafioId}}/ranking"
+      }
+    },
+    {
+      "name": "10 Resumen de inicio",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Resumen incluye check-in de hoy',()=>{const r=pm.response.json().find(x=>x.desafio.id===pm.collectionVariables.get('desafioId'));pm.expect(r.checkinHoy).to.equal(true);pm.expect(r.posicion).to.equal(1);});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/personas/me/resumen"
+      }
+    },
+    {
+      "name": "11 Historial paginado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Un registro',()=>pm.expect(pm.response.json().total).to.equal(1));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/{{desafioId}}/checkins?personaId={{personaA}}&pagina=1&limite=10"
+      }
+    },
+    {
+      "name": "12 Racha individual",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Mejor racha uno',()=>pm.expect(pm.response.json().mejorRacha).to.equal(1));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/{{desafioId}}/racha/{{personaA}}"
+      }
+    },
+    {
+      "name": "13 Deshacer",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/{{desafioId}}/checkins/ultimo"
+      }
+    },
+    {
+      "name": "14 Ranking sin puntos tras deshacer",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Sin puntos',()=>pm.response.json().items.forEach(x=>pm.expect(x.puntos).to.equal(0)));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/{{desafioId}}/ranking"
+      }
+    },
+    {
+      "name": "15 Alias inválido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/personas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Error esperado\",\n  \"alias\": \"!\",\n  \"email\": \"invalido@example.com\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "16 Desafío inexistente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/000000000000000000000000"
+      }
+    },
+    {
+      "name": "17 Paginación inválida",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios?pagina=0&limite=99"
+      }
+    },
+    {
+      "name": "18 Cancelar desafío de prueba",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-usuario-id",
+            "value": "{{personaA}}"
+          }
+        ],
+        "url": "{{baseUrl}}/desafios/{{desafioId}}/cancelar"
+      }
+    }
+  ]
+}

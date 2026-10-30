@@ -1,4 +1,4 @@
-export type Categoria = 'SALUD' | 'ESTUDIO' | 'FINANZAS' | 'BIENESTAR' | 'OTRO';
+export type Categoria = "SALUD" | "ESTUDIO" | "FINANZAS" | "BIENESTAR" | "OTRO";
 
 export interface Persona {
   id: string;
@@ -40,6 +40,7 @@ export interface CrearDesafio {
 }
 
 export interface Checkin {
+  puntos: number;
   id: string;
   persona: string;
   desafio: string;
@@ -52,4 +53,36 @@ export interface CrearCheckin {
   fecha: string;
   nota?: string;
   valor?: number;
+}
+
+export type Estado = "PROGRAMADO" | "ACTIVO" | "FINALIZADO" | "CANCELADO";
+export interface Pagina<T> {
+  items: T[];
+  total: number;
+  pagina: number;
+  limite: number;
+  paginas: number;
+}
+export interface Posicion {
+  personaId: string;
+  alias: string;
+  nombre: string;
+  puntos: number;
+  rachaActual: number;
+  mejorRacha: number;
+  checkinHoy: boolean;
+  posicion: number;
+}
+export interface Ranking {
+  items: Posicion[];
+  ganador: Posicion | null;
+}
+export interface Resumen extends Posicion {
+  desafio: Desafio;
+  estado: Estado;
+}
+export interface Resultado {
+  desafio: Desafio;
+  resultado: Posicion;
+  ganador: Posicion | null;
 }

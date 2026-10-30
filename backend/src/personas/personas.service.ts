@@ -16,7 +16,6 @@ import { UpdatePersonaDto } from './dto/update-persona.dto';
 
 import { Desafio } from '../desafios/schemas/desafio.schema';
 
-
 @Injectable()
 export class PersonasService {
   constructor(
@@ -31,8 +30,13 @@ export class PersonasService {
     try {
       const persona = new this.personaModel(datos);
       return await persona.save();
-    } catch (error: any) {
-      if (error.code === 11000) {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 11000
+      ) {
         throw new ConflictException('El alias o email ya existe');
       }
       throw error;
@@ -45,55 +49,53 @@ export class PersonasService {
   }
 
   // Obtener una persona por ID
-async findOne(id: string) {
-  if (!Types.ObjectId.isValid(id)) {
-    throw new BadRequestException('ID inválido');
-  }
+  async findOne(id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('ID inválido');
+    }
 
-  const persona = await this.personaModel.findById(id);
+    const persona = await this.personaModel.findById(id);
 
-  if (!persona) {
-    throw new NotFoundException('Persona no encontrada');
+    if (!persona) {
+      throw new NotFoundException('Persona no encontrada');
+    }
+
+    return persona;
   }
-  
-  return persona;
-}
 
   async update(id: string, datos: UpdatePersonaDto) {
-  if (!Types.ObjectId.isValid(id)) {
-    throw new BadRequestException('ID inválido');
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('ID inválido');
+    }
+
+    const persona = await this.personaModel.findByIdAndUpdate(id, datos, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!persona) {
+      throw new NotFoundException('Persona no encontrada');
+    }
+
+    return persona;
   }
 
-  const persona = await this.personaModel.findByIdAndUpdate(
-    id,
-    datos,
-    { new: true, runValidators: true },
-  );
+  async findDesafios(id: string) {
+    // 1. Validar el ID
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('ID de persona inválido');
+    }
 
-  if (!persona) {
-    throw new NotFoundException('Persona no encontrada');
+    // 2. Comprobar que la persona exista
+    const persona = await this.personaModel.findById(id);
+
+    if (!persona) {
+      throw new NotFoundException('Persona no encontrada');
+    }
+
+    // 3. Buscar los desafíos donde participa
+    return await this.desafioModel.find({
+      participantes: persona._id,
+    });
   }
-
-  return persona;
 }
-
-async findDesafios(id: string) {
-  // 1. Validar el ID
-  if (!Types.ObjectId.isValid(id)) {
-    throw new BadRequestException('ID de persona inválido');
-  }
-
-  // 2. Comprobar que la persona exista
-  const persona = await this.personaModel.findById(id);
-
-  if (!persona) {
-    throw new NotFoundException('Persona no encontrada');
-  }
-
-  // 3. Buscar los desafíos donde participa
-  return await this.desafioModel.find({
-    participantes: persona._id,
-  });
-}
-}
-
