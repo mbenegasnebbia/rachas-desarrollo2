@@ -78,7 +78,7 @@ export default function Detalle() {
             </Text>
             <Boton
               titulo="Compartir invitación"
-              disabled={accion.ocupado}
+              disabled={accion.ocupado || !vigente}
               onPress={() =>
                 void accion.ejecutar(async () => {
                   await Share.share({
@@ -219,7 +219,7 @@ export default function Detalle() {
                   )
                 }
               />
-              {confirmacion && (
+              {!!confirmacion && (
                 <>
                   <Text style={estilos.texto}>
                     {confirmacion === "cancelar"
