@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import { Share, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import {
   abandonar,
   cancelar,
@@ -8,6 +8,8 @@ import {
   participantes,
   ranking,
 } from "@/api/desafios";
+import { Invitacion } from "@/components/Invitacion";
+import { UnirseFormulario } from "@/components/UnirseFormulario";
 import { checkin, deshacer, historial } from "@/api/checkins";
 import { useSesion } from "@/session/Sesion";
 import { useCarga, useAccion } from "@/hooks/useCarga";
@@ -16,6 +18,7 @@ import {
   Boton,
   Campo,
   EstadoCarga,
+  EtiquetasDesafio,
   Opciones,
   Paginador,
   Pantalla,
@@ -46,6 +49,8 @@ export default function Detalle() {
     }, [id, persona, pagina]),
   );
   const accion = useAccion();
+  const avance = useAccion();
+  const ocupado = accion.ocupado || avance.ocupado;
   if (!sesion.cargando && !persona) return <Redirect href="/ingreso" />;
   const d = carga.datos?.desafio,
     tabla = carga.datos?.tabla;
@@ -53,6 +58,8 @@ export default function Detalle() {
   const activo = !!d && estadoDe(d) === "ACTIVO";
   const vigente = !!d && ["ACTIVO", "PROGRAMADO"].includes(estadoDe(d));
   const participa = !!persona && !!d?.participantes.includes(persona.id);
+  const abandono = !!persona && !!d?.exParticipantes.includes(persona.id);
+  const completo = !!d && d.participantes.length >= d.maxParticipantes;
   return (
     <Pantalla refrescar={carga.cargar} cargando={carga.cargando}>
       <EstadoCarga {...carga} reintentar={carga.cargar} />
@@ -72,22 +79,17 @@ export default function Detalle() {
           <Text style={estilos.texto}>
             {d.participantes.length}/{d.maxParticipantes} participantes
           </Text>
-          <View style={estilos.tarjeta}>
-            <Text selectable style={estilos.subtitulo}>
-              Código: {d.codigoInvitacion}
-            </Text>
-            <Boton
-              titulo="Compartir invitación"
-              disabled={accion.ocupado || !vigente}
-              onPress={() =>
-                void accion.ejecutar(async () => {
-                  await Share.share({
-                    message: `Sumate a "${d.nombre}" en Rachas con el código ${d.codigoInvitacion}.`,
-                  });
-                })
-              }
+          <EtiquetasDesafio desafio={d} personaId={persona?.id} />
+          {!participa && vigente && !abandono && !completo && (
+            <UnirseFormulario
+              codigoEsperado={d.codigoInvitacion}
+              disabled={ocupado || carga.cargando || !!carga.error}
+              alUnirse={async () => {
+                await carga.cargar();
+              }}
             />
-          </View>
+          )}
+          <Invitacion desafio={d} vigente={vigente} participa={participa} />
           <Text style={estilos.subtitulo}>Participantes</Text>
           {carga.datos?.personas.length === 0 && (
             <Text style={estilos.texto}>Sin participantes.</Text>
@@ -121,22 +123,32 @@ export default function Detalle() {
           {participa && activo && (
             <View style={estilos.tarjeta}>
               <Text style={estilos.subtitulo}>Registrar tu avance</Text>
+              <Aviso texto={avance.error} />
               <Opciones
                 valores={["HOY", "AYER"]}
                 valor={dia}
-                cambiar={setDia}
+                cambiar={(nuevoDia) => {
+                  setDia(nuevoDia);
+                  avance.limpiarError();
+                }}
               />
               <Campo
                 etiqueta="Nota (opcional, hasta 140 caracteres)"
                 value={nota}
-                onChangeText={setNota}
+                onChangeText={(texto) => {
+                  setNota(texto);
+                  avance.limpiarError();
+                }}
                 maxLength={140}
               />
               <Campo
                 etiqueta="Valor numérico (opcional)"
                 keyboardType="decimal-pad"
                 value={valor}
-                onChangeText={setValor}
+                onChangeText={(texto) => {
+                  setValor(texto);
+                  avance.limpiarError();
+                }}
               />
               <Boton
                 titulo={
@@ -145,10 +157,10 @@ export default function Detalle() {
                     : "Guardar check-in"
                 }
                 disabled={
-                  accion.ocupado || (dia === "HOY" && propio?.checkinHoy)
+                  ocupado || (dia === "HOY" && propio?.checkinHoy)
                 }
                 onPress={() =>
-                  void accion.ejecutar(async () => {
+                  void avance.ejecutar(async () => {
                     const numero = valor.trim()
                       ? Number(valor.replace(",", "."))
                       : undefined;
@@ -172,9 +184,9 @@ export default function Detalle() {
               <Boton
                 titulo="Deshacer check-in de hoy"
                 secundario
-                disabled={accion.ocupado || !propio?.checkinHoy}
+                disabled={ocupado || !propio?.checkinHoy}
                 onPress={() =>
-                  void accion.ejecutar(async () => {
+                  void avance.ejecutar(async () => {
                     await deshacer(id);
                     await carga.cargar();
                   })
@@ -212,7 +224,7 @@ export default function Detalle() {
                     : "Abandonar desafío"
                 }
                 secundario
-                disabled={accion.ocupado}
+                disabled={ocupado}
                 onPress={() =>
                   setConfirmacion(
                     d.creador === persona?.id ? "cancelar" : "abandonar",
@@ -228,7 +240,7 @@ export default function Detalle() {
                   </Text>
                   <Boton
                     titulo="Confirmar"
-                    disabled={accion.ocupado}
+                    disabled={ocupado}
                     onPress={() =>
                       void accion.ejecutar(async () => {
                         if (confirmacion === "cancelar") await cancelar(id);
@@ -241,7 +253,7 @@ export default function Detalle() {
                   <Boton
                     titulo="Volver"
                     secundario
-                    disabled={accion.ocupado}
+                    disabled={ocupado}
                     onPress={() => setConfirmacion("")}
                   />
                 </>

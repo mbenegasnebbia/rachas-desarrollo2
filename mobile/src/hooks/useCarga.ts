@@ -49,5 +49,12 @@ export function useAccion() {
       setOcupado(false);
     }
   }
-  return { ocupado, error, ejecutar };
+  return {
+    ocupado,
+    error,
+    ejecutar,
+    limpiarError: () => {
+      if (!bloqueo.current) setError("");
+    },
+  };
 }
