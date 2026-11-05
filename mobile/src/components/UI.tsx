@@ -95,11 +95,17 @@ export function Boton({
       onPress={onPress}
       style={[
         estilos.boton,
-        secundario && { backgroundColor: "#68766B" },
+        secundario && {
+          backgroundColor: "#FFFFFF",
+          borderWidth: 1,
+          borderColor: "#256448",
+        },
         disabled && { opacity: 0.45 },
       ]}
     >
-      <Text style={estilos.botonTexto}>{titulo}</Text>
+      <Text style={[estilos.botonTexto, secundario && { color: "#256448" }]}>
+        {titulo}
+      </Text>
     </Pressable>
   );
 }
@@ -129,11 +135,13 @@ export function EstadoCarga({
   cargando,
   error,
   vacio,
+  mensajeVacio = "Todavía no hay datos para mostrar.",
   reintentar,
 }: {
   cargando: boolean;
   error: string;
   vacio?: boolean;
+  mensajeVacio?: string;
   reintentar: () => void;
 }) {
   return (
@@ -147,19 +155,48 @@ export function EstadoCarga({
           <Boton titulo="Reintentar" onPress={reintentar} />
         </View>
       ) : !cargando && vacio ? (
-        <Text style={estilos.texto}>Todavía no hay datos para mostrar.</Text>
+        <Text style={estilos.texto}>{mensajeVacio}</Text>
       ) : null}
     </>
+  );
+}
+export function EtiquetasDesafio({
+  desafio,
+  personaId,
+}: {
+  desafio: Desafio;
+  personaId?: string;
+}) {
+  const estado = estadoDe(desafio);
+  const participa = !!personaId && desafio.participantes.includes(personaId);
+  const abandono = !!personaId && desafio.exParticipantes.includes(personaId);
+  const cerrado = estado === "FINALIZADO" || estado === "CANCELADO";
+  const completo = desafio.participantes.length >= desafio.maxParticipantes;
+  return (
+    <Text style={estilos.etiqueta}>
+      {[
+        desafio.creador === personaId ? "Creado por vos" : participa ? "Ya participás" : "",
+        cerrado
+          ? estado === "FINALIZADO" ? "Desafío finalizado" : "Desafío cancelado"
+          : abandono
+            ? "Abandonaste este desafío · No podés volver a unirte"
+            : completo
+              ? "Desafío completo"
+              : !participa ? "Con cupo · Unión con código sujeta a validación" : "",
+      ].filter(Boolean).join(" · ")}
+    </Text>
   );
 }
 export function TarjetaDesafio({
   desafio,
   abrir,
   children,
+  personaId,
 }: {
   desafio: Desafio;
   abrir: () => void;
   children?: ReactNode;
+  personaId?: string;
 }) {
   return (
     <View style={estilos.tarjeta}>
@@ -170,6 +207,7 @@ export function TarjetaDesafio({
       <Text style={estilos.texto}>
         {fechaVisible(desafio.fechaInicio)} — {fechaVisible(desafio.fechaFin)}
       </Text>
+      {personaId ? <EtiquetasDesafio desafio={desafio} personaId={personaId} /> : null}
       {children}
       <Boton titulo="Ver desafío" onPress={abrir} secundario />
     </View>

@@ -26,6 +26,7 @@ export default function Inicio() {
       <EstadoCarga
         {...carga}
         vacio={carga.datos?.length === 0}
+        mensajeVacio="Todavía no participás en desafíos activos o programados. Explorá los disponibles o creá uno propio para empezar."
         reintentar={carga.cargar}
       />
       {carga.datos?.map((r) => (

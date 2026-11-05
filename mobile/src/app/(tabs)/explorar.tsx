@@ -1,12 +1,11 @@
 import { useCallback, useState } from "react";
 import { router } from "expo-router";
-import { Text, View } from "react-native";
-import { listarDesafios, unirse } from "@/api/desafios";
-import { useCarga, useAccion } from "@/hooks/useCarga";
+import { Text } from "react-native";
+import { listarDesafios } from "@/api/desafios";
+import { UnirseFormulario } from "@/components/UnirseFormulario";
+import { useSesion } from "@/session/Sesion";
+import { useCarga } from "@/hooks/useCarga";
 import {
-  Aviso,
-  Boton,
-  Campo,
   EstadoCarga,
   Opciones,
   Paginador,
@@ -32,40 +31,22 @@ const estados = [
 export default function Explorar() {
   const [categoria, setCategoria] = useState<string>(""),
     [estado, setEstado] = useState<string>(""),
-    [pagina, setPagina] = useState(1),
-    [codigo, setCodigo] = useState("");
+    [pagina, setPagina] = useState(1);
   const carga = useCarga(
     useCallback(
       () => listarDesafios(pagina, estado, categoria),
       [pagina, estado, categoria],
     ),
   );
-  const accion = useAccion();
+  const { persona } = useSesion();
   return (
     <Pantalla refrescar={carga.cargar} cargando={carga.cargando}>
       <Text style={estilos.titulo}>Encontrá tu próximo desafío</Text>
-      <View style={estilos.tarjeta}>
-        <Campo
-          etiqueta="Código de invitación"
-          autoCapitalize="characters"
-          maxLength={6}
-          value={codigo}
-          onChangeText={setCodigo}
-        />
-        <Aviso texto={accion.error} />
-        <Boton
-          titulo="Unirme"
-          disabled={accion.ocupado}
-          onPress={() =>
-            void accion.ejecutar(async () => {
-              if (!/^[a-z0-9]{6}$/i.test(codigo.trim()))
-                throw new Error("Ingresá un código de 6 letras o números.");
-              const d = await unirse(codigo);
-              router.push({ pathname: "/desafio/[id]", params: { id: d.id } });
-            })
-          }
-        />
-      </View>
+      <UnirseFormulario
+        alUnirse={(d) =>
+          router.push({ pathname: "/desafio/[id]", params: { id: d.id } })
+        }
+      />
       <Text style={estilos.etiqueta}>Categoría</Text>
       <Opciones
         valores={categorias}
@@ -94,6 +75,7 @@ export default function Explorar() {
           <TarjetaDesafio
             key={d.id}
             desafio={d}
+            personaId={persona?.id}
             abrir={() =>
               router.push({ pathname: "/desafio/[id]", params: { id: d.id } })
             }
