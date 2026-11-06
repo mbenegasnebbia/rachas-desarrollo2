@@ -5,6 +5,12 @@ export type PersonaDocument = HydratedDocument<Persona>;
 
 @Schema()
 export class Persona {
+  @Prop()
+  firebaseUid?: string;
+
+  @Prop({ default: true })
+  perfilCompleto!: boolean;
+
   @Prop({ required: true })
   nombre!: string;
 
@@ -30,6 +36,14 @@ export class Persona {
 }
 
 export const PersonaSchema = SchemaFactory.createForClass(Persona);
+PersonaSchema.index(
+  { firebaseUid: 1 },
+  {
+    name: 'firebaseUid_unique',
+    unique: true,
+    partialFilterExpression: { firebaseUid: { $type: 'string' } },
+  },
+);
 
 PersonaSchema.set('toJSON', {
   virtuals: true,
@@ -41,6 +55,7 @@ PersonaSchema.set('toJSON', {
     >;
     delete resultado._id;
     delete resultado.__v;
+    delete resultado.firebaseUid;
     return resultado;
   },
 });

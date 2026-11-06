@@ -6,6 +6,7 @@ export interface Persona {
   alias: string;
   email: string;
   zonaHoraria: string;
+  perfilCompleto: boolean;
 }
 
 export interface CrearPersona {

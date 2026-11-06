@@ -51,7 +51,7 @@ export default function Detalle() {
   const accion = useAccion();
   const avance = useAccion();
   const ocupado = accion.ocupado || avance.ocupado;
-  if (!sesion.cargando && !persona) return <Redirect href="/ingreso" />;
+  if (!sesion.cargando && !persona?.perfilCompleto) return <Redirect href="/ingreso" />;
   const d = carga.datos?.desafio,
     tabla = carga.datos?.tabla;
   const propio = tabla?.items.find((p) => p.personaId === persona?.id);

@@ -3,16 +3,16 @@ import {
   browserPopupRedirectResolver,
   getAuth,
   initializeAuth,
-  inMemoryPersistence,
+  browserLocalPersistence,
   type Auth,
 } from "firebase/auth";
 
 export class ConfiguracionFirebaseError extends Error {}
 
-const nombreApp = "rachas-google-web-prueba";
+const nombreApp = "rachas-web";
 
-// Solo se inicializa al pulsar el botón; no afecta el ingreso provisional.
-export function obtenerAuthPrueba(): Auth {
+// Firebase administra la persistencia y renovación de la sesión Web.
+export function obtenerAuthFirebase(): Auth {
   if (typeof window === "undefined")
     throw new ConfiguracionFirebaseError("La prueba de Google está disponible en el navegador.");
 
@@ -32,7 +32,10 @@ export function obtenerAuthPrueba(): Auth {
 
   const app = initializeApp(config, nombreApp);
   return initializeAuth(app, {
-    persistence: inMemoryPersistence,
+    persistence: browserLocalPersistence,
     popupRedirectResolver: browserPopupRedirectResolver,
   });
 }
+
+// Compatibilidad con el componente de diagnóstico, ya fuera de la navegación.
+export const obtenerAuthPrueba = obtenerAuthFirebase;

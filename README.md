@@ -171,3 +171,11 @@ npx --yes --package newman newman run rachas.postman_collection.json --bail
 Implementados ingreso con sesión persistente, pestañas Inicio/Explorar/Crear/Perfil, detalle, check-ins, puntos, rachas, ranking, resumen y paginación. Ver [documentación y pruebas](docs/parte-2.md).
 
 La colección [Rachas - Partes I y II](rachas.postman_collection.json) incluye el recorrido de integración.
+
+## Elección del proveedor de autenticación: Firebase Authentication**
+
+Se seleccionó Firebase Authentication para implementar el inicio de sesión con Google, debido a su integración con el ecosistema Expo/React Native y a la disponibilidad de Firebase Admin SDK para verificar tokens de identidad desde NestJS.
+
+Esta arquitectura permite separar la autenticación de la lógica de negocio: Firebase verifica la identidad del usuario, mientras que MongoDB Atlas conserva los perfiles, desafíos, participantes y registros de actividad.
+
+Se evaluó Auth0 como alternativa válida, pero se priorizó Firebase por ajustarse al alcance del proyecto, centrado en autenticación con Google, sin requerimientos avanzados de gestión empresarial de identidades.

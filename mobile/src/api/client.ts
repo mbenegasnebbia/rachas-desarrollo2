@@ -1,8 +1,6 @@
+import { obtenerToken } from "@/auth/session";
+
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
-let sesionId: string | undefined;
-export function identificar(id?: string) {
-  sesionId = id;
-}
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -14,54 +12,69 @@ export class ApiError extends Error {
 interface Opciones {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
-  usuarioId?: string;
 }
 export async function request<T>(
   path: string,
-  { method = "GET", body, usuarioId = sesionId }: Opciones = {},
+  { method = "GET", body }: Opciones = {},
 ): Promise<T> {
-  if (!API_URL)
-    throw new ApiError(
-      0,
-      "Falta configurar EXPO_PUBLIC_API_URL en mobile/.env.local.",
-    );
+  if (!API_URL) throw new ApiError(0, "Falta configurar EXPO_PUBLIC_API_URL.");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(API_URL.replace(/\/$/, "") + path, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(usuarioId ? { "x-usuario-id": usuarioId } : {}),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const texto = await res.text();
-    let data: unknown;
-    try {
-      data = texto ? JSON.parse(texto) : undefined;
-    } catch {
-      throw new ApiError(
-        res.status,
-        "El servidor devolvió una respuesta inesperada.",
-      );
+    for (let intento = 0; intento < 2; intento++) {
+      let token: string | null;
+      try {
+        token = await obtenerToken(intento === 1);
+      } catch {
+        throw new ApiError(
+          401,
+          "Tu sesión venció. Volvé a ingresar con Google.",
+        );
+      }
+      if (!token) throw new ApiError(401, "Ingresá con Google para continuar.");
+      const res = await fetch(API_URL.replace(/\/$/, "") + path, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
+        credentials: "omit",
+        cache: "no-store",
+        redirect: "error",
+      });
+      // El guard rechaza antes del controlador: reintentar una sola vez es seguro.
+      if (res.status === 401 && intento === 0) continue;
+      const texto = await res.text();
+      let data: unknown;
+      try {
+        data = texto ? JSON.parse(texto) : undefined;
+      } catch {
+        throw new ApiError(
+          res.status,
+          "El servidor devolvió una respuesta inesperada.",
+        );
+      }
+      if (!res.ok) {
+        const mensaje =
+          typeof data === "object" && data !== null && "message" in data
+            ? data.message
+            : undefined;
+        throw new ApiError(
+          res.status,
+          res.status === 401
+            ? "Tu sesión no es válida. Cerrá sesión y volvé a ingresar."
+            : Array.isArray(mensaje)
+              ? mensaje.join("\n")
+              : typeof mensaje === "string"
+                ? mensaje
+                : "No se pudo completar la operación.",
+        );
+      }
+      return data as T;
     }
-    if (!res.ok) {
-      const mensaje =
-        typeof data === "object" && data !== null && "message" in data
-          ? data.message
-          : undefined;
-      throw new ApiError(
-        res.status,
-        Array.isArray(mensaje)
-          ? mensaje.join("\n")
-          : typeof mensaje === "string"
-            ? mensaje
-            : "No se pudo completar la operación.",
-      );
-    }
-    return data as T;
+    throw new ApiError(401, "No se pudo renovar la sesión.");
   } catch (e) {
     if (e instanceof ApiError) throw e;
     throw new ApiError(

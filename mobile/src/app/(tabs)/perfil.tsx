@@ -88,7 +88,7 @@ export default function Perfil() {
         </TarjetaDesafio>
       ))}
       <Boton
-        titulo="Cerrar sesión / Cambiar persona"
+        titulo="Cerrar sesión"
         secundario
         disabled={accion.ocupado}
         onPress={() =>

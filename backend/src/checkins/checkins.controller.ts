@@ -1,3 +1,4 @@
+import { CurrentPersonaId, requireOwner } from '../auth/auth.decorators';
 import {
   Controller,
   Get,
@@ -5,7 +6,6 @@ import {
   Delete,
   Body,
   Param,
-  Headers,
   Query,
 } from '@nestjs/common';
 
@@ -20,7 +20,7 @@ export class CheckinsController {
   @Post()
   create(
     @Param('desafioId') desafioId: string,
-    @Headers('x-usuario-id') usuarioId: string,
+    @CurrentPersonaId() usuarioId: string,
     @Body() datos: CreateCheckinDto,
   ) {
     return this.checkinsService.create(desafioId, usuarioId, datos);
@@ -29,7 +29,7 @@ export class CheckinsController {
   @Delete('ultimo')
   undo(
     @Param('desafioId') desafioId: string,
-    @Headers('x-usuario-id') usuarioId: string,
+    @CurrentPersonaId() usuarioId: string,
   ) {
     return this.checkinsService.undo(desafioId, usuarioId);
   }
@@ -38,7 +38,9 @@ export class CheckinsController {
   findByPersona(
     @Param('desafioId') desafioId: string,
     @Query() query: ListarCheckinsDto,
+    @CurrentPersonaId() currentId: string,
   ) {
+    requireOwner(query.personaId, currentId);
     return this.checkinsService.findByPersona(
       desafioId,
       query.personaId,

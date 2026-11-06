@@ -1,78 +1,123 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { identificar } from "@/api/client";
+import {
+  observarSesion,
+  ingresarConGoogle,
+  cerrarSesionFirebase,
+  mensajeErrorAuth,
+  type UsuarioFirebase,
+} from "@/auth/session";
+import { personaAutenticada } from "@/api/personas";
 import type { Persona } from "@/types";
-const KEY = "rachas.persona.v1";
+
 interface Sesion {
   persona: Persona | null;
+  usuarioFirebase: UsuarioFirebase | null;
   cargando: boolean;
   error: string;
   guardar: (p: Persona | null) => Promise<void>;
+  ingresar: () => Promise<void>;
   reintentar: () => void;
 }
 const Contexto = createContext<Sesion | null>(null);
 export function SesionProvider({ children }: { children: ReactNode }) {
   const [persona, setPersona] = useState<Persona | null>(null);
+  const [usuarioFirebase, setUsuarioFirebase] =
+    useState<UsuarioFirebase | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [intento, setIntento] = useState(0);
+  const secuencia = useRef(0);
+  const personaActual = useRef<Persona | null>(null);
+
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
     let vigente = true;
-    AsyncStorage.getItem(KEY)
-      .then(async (raw) => {
-        if (!vigente) return;
-        if (raw) {
-          let p: unknown;
-          try {
-            p = JSON.parse(raw);
-          } catch {
-            await AsyncStorage.removeItem(KEY);
-            return;
-          }
-          if (
-            typeof p !== "object" ||
-            p === null ||
-            !("id" in p) ||
-            typeof p.id !== "string" ||
-            !/^[a-f0-9]{24}$/i.test(p.id)
-          ) {
-            await AsyncStorage.removeItem(KEY);
-            return;
-          }
-          identificar(p.id);
-          setPersona(p as Persona);
+    async function cargar(user: UsuarioFirebase | null) {
+      if (!vigente) return;
+      const turno = ++secuencia.current;
+      setUsuarioFirebase(user);
+      personaActual.current = null;
+      setPersona(null);
+      setError("");
+      setCargando(!!user);
+      if (!user) return;
+      try {
+        const perfil = await personaAutenticada();
+        if (vigente && turno === secuencia.current) {
+          personaActual.current = perfil;
+          setPersona(perfil);
         }
-      })
-      .catch(() => {
-        if (vigente)
-          setError("No se pudo recuperar la sesión del dispositivo.");
-      })
-      .finally(() => {
-        if (vigente) setCargando(false);
-      });
+      } catch (e) {
+        if (vigente && turno === secuencia.current)
+          setError(
+            e instanceof Error ? e.message : "No se pudo recuperar tu perfil.",
+          );
+      } finally {
+        if (vigente && turno === secuencia.current) setCargando(false);
+      }
+    }
+    void Promise.resolve().then(() => {
+      if (!vigente) return;
+      try {
+        unsubscribe = observarSesion(
+          (user) => {
+            void cargar(user);
+          },
+          (e) => {
+            if (!vigente) return;
+            secuencia.current++;
+            setUsuarioFirebase(null);
+            personaActual.current = null;
+            setPersona(null);
+            setError(mensajeErrorAuth(e));
+            setCargando(false);
+          },
+        );
+      } catch (e) {
+        setError(mensajeErrorAuth(e));
+        setCargando(false);
+      }
+    });
     return () => {
       vigente = false;
+      unsubscribe?.();
     };
   }, [intento]);
+
   async function guardar(p: Persona | null) {
-    if (p) await AsyncStorage.setItem(KEY, JSON.stringify(p));
-    else await AsyncStorage.removeItem(KEY);
-    identificar(p?.id);
-    setPersona(p);
+    if (!p) {
+      await cerrarSesionFirebase();
+      secuencia.current++;
+      personaActual.current = null;
+      setPersona(null);
+      setUsuarioFirebase(null);
+      setError("");
+      setCargando(false);
+    } else {
+      if (personaActual.current?.id !== p.id)
+        throw new Error(
+          "No se puede cambiar de persona sin cambiar de cuenta Google.",
+        );
+      personaActual.current = p;
+      setPersona(p);
+    }
   }
   return (
     <Contexto.Provider
       value={{
         persona,
+        usuarioFirebase,
         cargando,
         error,
         guardar,
+        ingresar: ingresarConGoogle,
         reintentar: () => {
           setCargando(true);
           setError("");

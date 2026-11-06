@@ -1,6 +1,7 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
 
 import { Persona } from '../personas/schemas/persona.schema';
 import { Desafio } from '../desafios/schemas/desafio.schema';
@@ -13,9 +14,14 @@ export class SeedService implements OnApplicationBootstrap {
 
     @InjectModel(Desafio.name)
     private desafioModel: Model<Desafio>,
+
+    private readonly config: ConfigService,
   ) {}
 
   async onApplicationBootstrap() {
+    // Opt-in explícito: arrancar la API no debe modificar los datos existentes.
+    if (this.config.get<string>('SEED_ENABLED') !== 'true') return;
+
     // 1. Crear tres personas si no existen
     const personas = [
       { nombre: 'Lucia', alias: 'lucia_seed', email: 'lucia.seed@example.com' },

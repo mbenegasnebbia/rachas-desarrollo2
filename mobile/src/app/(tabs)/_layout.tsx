@@ -3,7 +3,7 @@ import { useSesion } from "@/session/Sesion";
 import { EstadoCarga, Pantalla } from "@/components/UI";
 export default function Principal() {
   const s = useSesion();
-  if (s.cargando || s.error)
+  if (s.cargando)
     return (
       <Pantalla>
         <EstadoCarga
@@ -13,7 +13,7 @@ export default function Principal() {
         />
       </Pantalla>
     );
-  if (!s.persona) return <Redirect href="/ingreso" />;
+  if (!s.persona?.perfilCompleto) return <Redirect href="/ingreso" />;
   return (
     <Tabs
       screenOptions={{

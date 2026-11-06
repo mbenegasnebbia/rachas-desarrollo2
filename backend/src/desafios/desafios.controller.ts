@@ -1,12 +1,5 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Body,
-  Headers,
-  Param,
-} from '@nestjs/common';
+import { CurrentPersonaId } from '../auth/auth.decorators';
+import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
 
 import { ListarDesafiosDto } from './dto/listar-desafios.dto';
 import { DesafiosService } from './desafios.service';
@@ -21,7 +14,7 @@ export class DesafiosController {
   @Post()
   create(
     @Body() datos: CreateDesafioDto,
-    @Headers('x-usuario-id') usuarioId: string,
+    @CurrentPersonaId() usuarioId: string,
   ) {
     return this.desafiosService.create(datos, usuarioId);
   }
@@ -40,26 +33,23 @@ export class DesafiosController {
   update(
     @Param('id') id: string,
     @Body() datos: UpdateDesafioDto,
-    @Headers('x-usuario-id') usuarioId: string,
+    @CurrentPersonaId() usuarioId: string,
   ) {
     return this.desafiosService.update(id, datos, usuarioId);
   }
 
   @Patch(':id/cancelar')
-  cancel(@Param('id') id: string, @Headers('x-usuario-id') usuarioId: string) {
+  cancel(@Param('id') id: string, @CurrentPersonaId() usuarioId: string) {
     return this.desafiosService.cancel(id, usuarioId);
   }
 
   @Post('unirse/:codigo')
-  join(
-    @Param('codigo') codigo: string,
-    @Headers('x-usuario-id') usuarioId: string,
-  ) {
+  join(@Param('codigo') codigo: string, @CurrentPersonaId() usuarioId: string) {
     return this.desafiosService.join(codigo, usuarioId);
   }
 
   @Post(':id/abandonar')
-  leave(@Param('id') id: string, @Headers('x-usuario-id') usuarioId: string) {
+  leave(@Param('id') id: string, @CurrentPersonaId() usuarioId: string) {
     return this.desafiosService.leave(id, usuarioId);
   }
 

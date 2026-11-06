@@ -1,3 +1,4 @@
+import { AuthModule } from './auth/auth.module';
 import { ProgresoModule } from './progreso/progreso.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
@@ -10,6 +11,7 @@ import { SeedModule } from './seed/seed.module';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { mongoOptions } from './common/mongo-options';
 
 @Module({
   imports: [
@@ -19,11 +21,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 
     MongooseModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.getOrThrow<string>('MONGODB_URI'),
-      }),
+      useFactory: mongoOptions,
     }),
 
+    AuthModule,
     ProgresoModule,
     PersonasModule,
     DesafiosModule,

@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Redirect } from "expo-router";
 import { Text, View } from "react-native";
-import { listarPersonas, registrar } from "@/api/personas";
+import { completarPerfil } from "@/api/personas";
 import { useSesion } from "@/session/Sesion";
-import { useCarga, useAccion } from "@/hooks/useCarga";
+import { useAccion } from "@/hooks/useCarga";
+import { mensajeErrorAuth } from "@/auth/session";
 import {
   Aviso,
   Boton,
@@ -12,79 +13,96 @@ import {
   Pantalla,
   estilos,
 } from "@/components/UI";
-import { GooglePrueba } from "@/components/GooglePrueba";
-import { validarRegistro } from "@/utils/validaciones";
+import { validarPerfil } from "@/utils/validaciones";
+
 export default function Ingreso() {
   const sesion = useSesion();
-  const carga = useCarga(useCallback(() => listarPersonas(), []));
   const accion = useAccion();
-  const [nombre, setNombre] = useState(""),
-    [alias, setAlias] = useState(""),
-    [email, setEmail] = useState(""),
-    [zona, setZona] = useState("America/Argentina/Buenos_Aires");
-  if (sesion.persona) return <Redirect href="/(tabs)" />;
+  const [alias, setAlias] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [zona, setZona] = useState("America/Argentina/Buenos_Aires");
+  if (sesion.persona?.perfilCompleto) return <Redirect href="/(tabs)" />;
   return (
-    <Pantalla refrescar={carga.cargar} cargando={carga.cargando}>
+    <Pantalla>
       <Text style={estilos.titulo}>Un hábito, día a día.</Text>
-      <Text style={estilos.texto}>
-        Elegí tu persona o registrate para empezar. El ingreso es provisorio
-        hasta la parte III.
-      </Text>
-      <GooglePrueba />
       <EstadoCarga
-        {...carga}
-        vacio={carga.datos?.length === 0}
-        reintentar={carga.cargar}
+        cargando={sesion.cargando}
+        error={sesion.error}
+        reintentar={sesion.reintentar}
       />
-      {carga.datos?.map((p) => (
+      <Aviso texto={accion.error} />
+      {!sesion.cargando && !sesion.usuarioFirebase ? (
         <Boton
-          key={p.id}
-          titulo={p.nombre + " · @" + p.alias}
-          disabled={accion.ocupado}
-          onPress={() => void accion.ejecutar(() => sesion.guardar(p))}
-        />
-      ))}
-      <View style={estilos.tarjeta}>
-        <Text style={estilos.subtitulo}>Crear persona</Text>
-        <Campo etiqueta="Nombre" value={nombre} onChangeText={setNombre} />
-        <Campo
-          etiqueta="Alias"
-          autoCapitalize="none"
-          maxLength={20}
-          value={alias}
-          onChangeText={setAlias}
-        />
-        <Campo
-          etiqueta="Email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <Campo
-          etiqueta="Zona horaria IANA"
-          autoCapitalize="none"
-          value={zona}
-          onChangeText={setZona}
-        />
-        <Aviso texto={accion.error} />
-        <Boton
-          titulo="Registrarme"
+          titulo={
+            accion.ocupado ? "Conectando con Google…" : "Continuar con Google"
+          }
           disabled={accion.ocupado}
           onPress={() =>
             void accion.ejecutar(async () => {
-              validarRegistro(nombre, alias, email, zona);
-              const p = await registrar({
-                nombre: nombre.trim(),
-                alias,
-                email: email.trim(),
-                zonaHoraria: zona,
-              });
-              await sesion.guardar(p);
+              try {
+                await sesion.ingresar();
+              } catch (e) {
+                throw new Error(mensajeErrorAuth(e));
+              }
             })
           }
         />
-      </View>
+      ) : null}
+      {!sesion.cargando && sesion.persona ? (
+        <View style={estilos.tarjeta}>
+          <Text style={estilos.subtitulo}>Completá tu perfil</Text>
+          <Text style={estilos.texto}>
+            Elegí un alias para participar en Rachas.
+          </Text>
+          <Campo
+            etiqueta="Alias (3 a 20 letras, números o guion bajo)"
+            value={alias}
+            autoCapitalize="none"
+            maxLength={20}
+            onChangeText={setAlias}
+          />
+          <Campo
+            etiqueta="Nombre"
+            value={nombre || sesion.persona.nombre}
+            onChangeText={setNombre}
+          />
+          <Campo
+            etiqueta="Zona horaria IANA"
+            value={zona}
+            autoCapitalize="none"
+            onChangeText={setZona}
+          />
+          <Boton
+            titulo="Guardar perfil y continuar"
+            disabled={accion.ocupado}
+            onPress={() =>
+              void accion.ejecutar(async () => {
+                if (!/^[a-zA-Z0-9_]{3,20}$/.test(alias))
+                  throw new Error(
+                    "Ingresá un alias válido de 3 a 20 caracteres.",
+                  );
+                const nombreFinal =
+                  nombre.trim() || sesion.persona?.nombre || "";
+                validarPerfil(nombreFinal, zona);
+                const perfil = await completarPerfil({
+                  alias,
+                  nombre: nombreFinal,
+                  zonaHoraria: zona,
+                });
+                await sesion.guardar(perfil);
+              })
+            }
+          />
+        </View>
+      ) : null}
+      {sesion.usuarioFirebase ? (
+        <Boton
+          titulo="Cerrar sesión"
+          secundario
+          disabled={accion.ocupado || sesion.cargando}
+          onPress={() => void accion.ejecutar(() => sesion.guardar(null))}
+        />
+      ) : null}
     </Pantalla>
   );
 }
