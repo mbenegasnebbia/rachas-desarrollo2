@@ -16,6 +16,32 @@ let owner: string | null = null,
   generation = 0,
   pumping = false,
   needsConsent = false;
+const pendingRevocations = new Set<string>();
+let webLease: Promise<boolean> | undefined;
+function acquireLease(): Promise<boolean> {
+  if (Platform.OS !== "web" || typeof window === "undefined")
+    return Promise.resolve(true);
+  if (!webLease)
+    webLease = new Promise((resolve) => {
+      if (!navigator.locks) {
+        resolve(false);
+        return;
+      }
+      void navigator.locks
+        .request(
+          "rachas.analytics.owner",
+          { ifAvailable: true },
+          async (lock) => {
+            resolve(!!lock);
+            if (lock) await new Promise<void>(() => {}); // held until this document closes
+          },
+        )
+        .catch(() => resolve(false));
+    });
+  return webLease;
+}
+const current = (uid: string, turn: number) =>
+  owner === uid && generation === turn;
 const optOut = (uid: string) => "rachas.analytics.optout." + uid;
 function publish(value: Partial<State>) {
   state = { ...state, ...value };
@@ -24,24 +50,39 @@ function publish(value: Partial<State>) {
 const queue = new AnalyticsQueue(
   AsyncStorage,
   async (events, uid) => {
-    try {
-      const response = await request<{ acceptedIds: string[] }>(
-        "/analytics/events",
-        { method: "POST", body: { events }, expectedUid: uid },
-      );
-      return response.acceptedIds;
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 400)
-        return events.map((event) => event.eventId);
-      if (error instanceof ApiError && error.status === 403 && owner === uid) {
-        queue.revoke();
-        publish({
-          enabled: false,
-          error: "Compartir datos de uso está desactivado en el servidor.",
-        });
+    const turn = generation;
+    const deliver = async (batch: typeof events): Promise<string[]> => {
+      if (!current(uid, turn)) throw new Error("Stale analytics operation");
+      try {
+        const response = await request<{ acceptedIds: string[] }>(
+          "/analytics/events",
+          { method: "POST", body: { events: batch }, expectedUid: uid },
+        );
+        return response.acceptedIds;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 400) {
+          if (!current(uid, turn)) throw error;
+          if (batch.length === 1) return [batch[0].eventId]; // terminal rejection, isolated
+          const middle = Math.floor(batch.length / 2);
+          const left = await deliver(batch.slice(0, middle));
+          const right = await deliver(batch.slice(middle));
+          return [...left, ...right];
+        }
+        if (
+          error instanceof ApiError &&
+          error.status === 403 &&
+          current(uid, turn)
+        ) {
+          queue.revoke();
+          publish({
+            enabled: false,
+            error: "Compartir datos de uso está desactivado en el servidor.",
+          });
+        }
+        throw error;
       }
-      throw error;
-    }
+    };
+    return deliver(events);
   },
   () => globalThis.crypto.randomUUID(),
   { appVersion: APP_VERSION, platform: Platform.OS },
@@ -57,8 +98,19 @@ export function subscribeAnalytics(listener: (value: State) => void) {
 export async function connectAnalytics(uid: string | null) {
   const turn = ++generation;
   owner = uid;
+  queue.suspend();
   needsConsent = !!uid;
   publish({ enabled: false, ready: false, busy: false, error: "" });
+  if (!(await acquireLease())) {
+    if (turn === generation)
+      publish({
+        ready: true,
+        error:
+          "Analytics abierto en otra pestana o sin soporte de coordinacion.",
+      });
+    return;
+  }
+  if (turn !== generation) return;
   // Disable delivery immediately; preserve this account's durable queue until consent is known.
   await queue.open(uid, true);
   if (turn !== generation) return;
@@ -67,15 +119,21 @@ export async function connectAnalytics(uid: string | null) {
     return;
   }
   try {
-    const pending = await AsyncStorage.getItem(optOut(uid));
-    if (pending === "1") {
+    const pending = pendingRevocations.has(uid)
+      ? "1"
+      : await AsyncStorage.getItem(optOut(uid));
+    if (!current(uid, turn)) return;
+    if (pending === "1" || pendingRevocations.has(uid)) {
       queue.revoke();
       await request("/analytics/consent", {
         method: "PATCH",
         body: { enabled: false },
         expectedUid: uid,
       });
+      if (!current(uid, turn)) return;
       await AsyncStorage.removeItem(optOut(uid));
+      if (!current(uid, turn)) return;
+      pendingRevocations.delete(uid);
     }
     const preference = await request<{ enabled: boolean }>(
       "/analytics/consent",
@@ -99,20 +157,32 @@ export async function connectAnalytics(uid: string | null) {
   }
 }
 export async function setAnalyticsConsent(enabled: boolean) {
-  if (!owner || state.busy) return;
   const uid = owner,
-    turn = ++generation;
+    previous = generation;
+  if (!uid || state.busy || !(await acquireLease())) return;
+  if (!current(uid, previous) || state.busy) return;
+  const turn = ++generation;
   queue.revoke();
   publish({ enabled: false, busy: true, error: "" });
   try {
-    if (!enabled) await AsyncStorage.setItem(optOut(uid), "1");
+    if (!enabled) {
+      pendingRevocations.add(uid);
+      try {
+        await AsyncStorage.setItem(optOut(uid), "1");
+      } catch {
+        /* still attempt remote revocation */
+      }
+      if (!current(uid, turn)) return;
+    }
     await request("/analytics/consent", {
       method: "PATCH",
       body: { enabled },
       expectedUid: uid,
     });
+    if (!current(uid, turn)) return;
     await AsyncStorage.removeItem(optOut(uid));
-    if (turn !== generation) return;
+    if (!current(uid, turn)) return;
+    pendingRevocations.delete(uid);
     await queue.open(uid, enabled);
     if (turn === generation) publish({ enabled, ready: true });
   } catch {
@@ -165,7 +235,9 @@ export async function flushAnalytics() {
       await connectAnalytics(uid);
       return;
     }
-    if ((await AsyncStorage.getItem(optOut(uid))) === "1") {
+    const pending = await AsyncStorage.getItem(optOut(uid)).catch(() => null);
+    if (!current(uid, turn)) return;
+    if (pending === "1" || pendingRevocations.has(uid)) {
       queue.revoke();
       publish({ enabled: false });
       await request("/analytics/consent", {
@@ -173,7 +245,10 @@ export async function flushAnalytics() {
         body: { enabled: false },
         expectedUid: uid,
       });
+      if (!current(uid, turn)) return;
       await AsyncStorage.removeItem(optOut(uid));
+      if (!current(uid, turn)) return;
+      pendingRevocations.delete(uid);
       if (turn === generation) publish({ enabled: false, error: "" });
     }
     if (turn === generation && state.enabled) await queue.flush();

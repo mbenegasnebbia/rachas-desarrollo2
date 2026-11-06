@@ -171,7 +171,7 @@ export class AnalyticsService {
     const person = await this.personas.findOneAndUpdate(
       { firebaseUid: uid },
       { $set: { compartirDatosUso: enabled } },
-      { new: true },
+      { new: true, writeConcern: { w: 'majority' } },
     );
     if (!person)
       throw new NotFoundException(
@@ -212,36 +212,52 @@ export class AnalyticsService {
     const validated = values.map((value) =>
       validateEvent(value, now.getTime()),
     );
-    const person = await this.personas.findOne({ firebaseUid: uid });
-    if (person?.compartirDatosUso !== true)
-      throw new ForbiddenException('Compartir datos de uso está desactivado');
     await this.checkIndexes();
     const distinct = [
       ...new Map(validated.map((event) => [event.eventId, event])).values(),
     ];
+    const session = await this.personas.db.startSession();
     try {
-      await this.events.bulkWrite(
-        distinct.map((event) => ({
-          updateOne: {
-            filter: { persona: person._id, eventId: event.eventId },
-            update: {
-              $setOnInsert: {
-                ...event,
-                occurredAt: new Date(event.occurredAt),
-                persona: person._id,
-                receivedAt: now,
+      await session.withTransaction(
+        async () => {
+          // A real write locks the same document updated by consent PATCH.
+          const person = await this.personas.findOneAndUpdate(
+            { firebaseUid: uid, compartirDatosUso: true },
+            { $inc: { analyticsWriteVersion: 1 } },
+            { new: true, session },
+          );
+          if (!person)
+            throw new ForbiddenException(
+              'Compartir datos de uso est� desactivado',
+            );
+          await this.events.bulkWrite(
+            distinct.map((event) => ({
+              updateOne: {
+                filter: { persona: person._id, eventId: event.eventId },
+                update: {
+                  $setOnInsert: {
+                    ...event,
+                    occurredAt: new Date(event.occurredAt),
+                    persona: person._id,
+                    receivedAt: now,
+                  },
+                },
+                upsert: true,
               },
-            },
-            upsert: true,
-          },
-        })),
-        { ordered: false },
+            })),
+            { ordered: false, session },
+          );
+        },
+        { writeConcern: { w: 'majority' }, readPreference: 'primary' },
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof ForbiddenException) throw error;
       // Never acknowledge an uncertain write. Unique keys make the retry safe.
       throw new ServiceUnavailableException(
         'No se pudo guardar el lote de analytics',
       );
+    } finally {
+      await session.endSession();
     }
     return { acceptedIds: distinct.map((event) => event.eventId) };
   }

@@ -62,16 +62,46 @@ function fixture(enabled = true, indexes = true) {
   const findOneAndUpdate = jest
     .fn<(...args: unknown[]) => Promise<unknown>>()
     .mockResolvedValue({ compartirDatosUso: false });
+  const session = {
+    withTransaction: async (callback: () => Promise<void>) => callback(),
+    endSession: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  };
+  const lockedPerson = jest
+    .fn<(...args: unknown[]) => Promise<unknown>>()
+    .mockImplementation(() => findOne());
+  const update = (...args: unknown[]) => {
+    const filter = args[0] as Record<string, unknown>;
+    return 'compartirDatosUso' in filter
+      ? lockedPerson(...args).then((p) =>
+          p && (p as { compartirDatosUso: boolean }).compartirDatosUso
+            ? p
+            : null,
+        )
+      : findOneAndUpdate(...args);
+  };
   const service = new AnalyticsService(
     {
       bulkWrite,
       aggregate,
       collection: { indexes: list },
     } as unknown as Model<AnalyticsEvent>,
-    { findOne, findOneAndUpdate } as unknown as Model<Persona>,
+    {
+      findOne,
+      findOneAndUpdate: update,
+      db: { startSession: () => Promise.resolve(session) },
+    } as unknown as Model<Persona>,
     new ConfigService({ ANALYTICS_READER_UIDS: uid }),
   );
-  return { service, bulkWrite, aggregate, list, findOne, findOneAndUpdate };
+  return {
+    service,
+    bulkWrite,
+    aggregate,
+    list,
+    findOne,
+    findOneAndUpdate,
+    session,
+    lockedPerson,
+  };
 }
 beforeEach(() => jest.useFakeTimers().setSystemTime(now));
 afterEach(() => jest.useRealTimers());
@@ -158,7 +188,15 @@ describe('Consent, identity and idempotent persistence (mocked models)', () => {
     expect(await f.service.receive(uid, [event(), event()])).toEqual({
       acceptedIds: [id],
     });
-    expect(f.findOne).toHaveBeenCalledWith({ firebaseUid: uid });
+    expect(f.lockedPerson).toHaveBeenCalledWith(
+      { firebaseUid: uid, compartirDatosUso: true },
+      { $inc: { analyticsWriteVersion: 1 } },
+      { new: true, session: f.session },
+    );
+    expect(f.bulkWrite.mock.calls[0][1]).toEqual({
+      ordered: false,
+      session: f.session,
+    });
     const ops = f.bulkWrite.mock.calls[0][0] as {
       updateOne: { filter: unknown; update: Record<string, unknown> };
     }[];
@@ -214,7 +252,7 @@ describe('Consent, identity and idempotent persistence (mocked models)', () => {
     expect(f.findOneAndUpdate).toHaveBeenCalledWith(
       { firebaseUid: uid },
       { $set: { compartirDatosUso: false } },
-      { new: true },
+      { new: true, writeConcern: { w: 'majority' } },
     );
     f.findOneAndUpdate.mockResolvedValue(null);
     await expect(f.service.setConsent(uid, true)).rejects.toMatchObject({
@@ -287,5 +325,94 @@ describe('Private aggregated metrics', () => {
     await expect(
       fixture().service.metrics(uid, from, to),
     ).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe('Revocation serialization with isolated coordinated model doubles', () => {
+  it('PATCH waits for a writer holding the Persona lock; later writers are denied', async () => {
+    const f = fixture();
+    let enabled = true;
+    let unlock!: () => void;
+    const lock = new Promise<void>((resolve) => {
+      unlock = resolve;
+    });
+    let entered!: () => void;
+    const writing = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let finishWrite!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      finishWrite = resolve;
+    });
+    let held = false;
+    f.lockedPerson.mockImplementation(() => {
+      if (!enabled) return Promise.resolve(null);
+      held = true;
+      return Promise.resolve({ _id: personId, compartirDatosUso: true });
+    });
+    f.session.withTransaction = async (callback: () => Promise<void>) => {
+      try {
+        await callback();
+      } finally {
+        held = false;
+        unlock();
+      }
+    };
+    f.bulkWrite.mockImplementation(async (...args) => {
+      expect(args[1]).toEqual({ ordered: false, session: f.session });
+      entered();
+      await blocked;
+      return {};
+    });
+    f.findOneAndUpdate.mockImplementation(async () => {
+      if (held) await lock;
+      enabled = false;
+      return { compartirDatosUso: false };
+    });
+    const receive = f.service.receive(uid, [event()]);
+    await writing;
+    let revoked = false;
+    const revoke = f.service.setConsent(uid, false).then(() => {
+      revoked = true;
+    });
+    await Promise.resolve();
+    expect(revoked).toBe(false);
+    finishWrite();
+    await receive;
+    await revoke;
+    expect(revoked).toBe(true);
+    await expect(f.service.receive(uid, [event()])).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(f.bulkWrite).toHaveBeenCalledTimes(1);
+    expect(f.session.endSession).toHaveBeenCalledTimes(2);
+  });
+  it('a writer paused before acquiring the transaction lock cannot write after PATCH', async () => {
+    const f = fixture();
+    let resume!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const indexes = await f.list();
+    f.list.mockImplementation(async () => {
+      await gate;
+      return indexes;
+    });
+    const receive = f.service.receive(uid, [event()]);
+    await f.service.setConsent(uid, false);
+    f.lockedPerson.mockResolvedValue(null);
+    resume();
+    await expect(receive).rejects.toMatchObject({ status: 403 });
+    expect(f.bulkWrite).not.toHaveBeenCalled();
+  });
+  it('transaction failure never acknowledges a batch and always closes the session', async () => {
+    const f = fixture();
+    f.session.withTransaction = () =>
+      Promise.reject(Error('transaction unavailable'));
+    await expect(f.service.receive(uid, [event()])).rejects.toMatchObject({
+      status: 503,
+    });
+    expect(f.bulkWrite).not.toHaveBeenCalled();
+    expect(f.session.endSession).toHaveBeenCalledTimes(1);
   });
 });

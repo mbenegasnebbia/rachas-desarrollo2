@@ -191,7 +191,7 @@ test("detects a previously observed lost streak once, not an undo on same day", 
     racha_anterior: 3,
   });
 });
-function runtime(s = storage()) {
+function runtime(s = storage(), override, environment = {}) {
   let enabled = true,
     offline = false,
     count = 0;
@@ -206,6 +206,10 @@ function runtime(s = storage()) {
     ApiError,
     request: async (p, options = {}) => {
       calls.push({ p, options });
+      if (override) {
+        const value = await override(p, options, ApiError);
+        if (value !== undefined) return value;
+      }
       if (offline) throw new ApiError(0);
       if (p === "/analytics/consent") {
         if (options.method === "PATCH") enabled = options.body.enabled;
@@ -227,6 +231,7 @@ function runtime(s = storage()) {
       "./queue": { AnalyticsQueue },
     },
     {
+      ...environment,
       globalThis: {
         crypto: {
           randomUUID: () =>
@@ -414,4 +419,104 @@ test("API instrumentation emits only after success and never includes free text"
     valor: 5,
   });
   assert.deepEqual(tracked[2][1], { desafio_id: challenge });
+});
+
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+test("setItem failure still revokes remotely and failed PATCH retries from memory", async () => {
+  const s = storage(),
+    r = runtime(s);
+  await r.module.connectAnalytics("A");
+  s.setItem = async () => {
+    throw Error("disk");
+  };
+  r.offline(true);
+  await r.module.setAnalyticsConsent(false);
+  assert.ok(r.calls.some((c) => c.options.method === "PATCH"));
+  assert.ok(r.module.analyticsState().error);
+  r.offline(false);
+  await r.module.flushAnalytics();
+  assert.equal(r.enabled(), false);
+  assert.equal(r.module.analyticsState().error, "");
+});
+test("account switch during opt-out read cannot revoke B", async () => {
+  const s = storage(),
+    r = runtime(s);
+  await r.module.connectAnalytics("A");
+  const get = s.getItem;
+  let finish;
+  s.getItem = (k) =>
+    k.endsWith("optout.A")
+      ? new Promise((resolve) => {
+          finish = resolve;
+        })
+      : get(k);
+  const pending = r.module.flushAnalytics();
+  await tick();
+  await r.module.connectAnalytics("B");
+  finish("1");
+  await pending;
+  assert.equal(r.module.analyticsState().enabled, true);
+  assert.ok(!r.calls.some((c) => c.options.method === "PATCH"));
+});
+test("late 403 from an older consent generation cannot disable same UID", async () => {
+  let reject;
+  const r = runtime(storage(), (p, o, ApiError) => {
+    if (p.endsWith("events"))
+      return new Promise((resolve, fail) => {
+        reject = () => fail(new ApiError(403));
+      });
+  });
+  await r.module.connectAnalytics("A");
+  const pending = r.module.flushAnalytics();
+  await tick();
+  await r.module.setAnalyticsConsent(true);
+  reject();
+  await pending;
+  assert.equal(r.module.analyticsState().enabled, true);
+});
+test("400 isolates one rejected event and delivers all valid siblings without infinite retries", async () => {
+  const delivered = [];
+  const r = runtime(storage(), (p, o, ApiError) => {
+    if (!p.endsWith("events")) return;
+    const events = o.body.events;
+    if (events.some((e) => e.name === "checkin_hecho")) throw new ApiError(400);
+    delivered.push(...events);
+    return { acceptedIds: events.map((e) => e.eventId) };
+  });
+  await r.module.connectAnalytics("A");
+  r.module.track("checkin_hecho", { desafio_id: challenge });
+  r.module.track("ranking_consultado", { desafio_id: challenge });
+  await r.module.flushAnalytics();
+  const count = r.calls.length;
+  await r.module.flushAnalytics();
+  assert.equal(r.calls.filter((c) => c.p.endsWith("events")).length, 5);
+  assert.ok(delivered.some((e) => e.name === "ranking_consultado"));
+  assert.equal(r.calls.length, count);
+});
+test("two Web instances cannot overwrite pending events", async () => {
+  const s = storage();
+  let held = false;
+  const environment = {
+    window: {},
+    navigator: {
+      locks: {
+        request: async (name, options, callback) => {
+          const lock = held ? null : {};
+          if (lock) held = true;
+          return callback(lock);
+        },
+      },
+    },
+  };
+  const a = runtime(s, undefined, environment),
+    b = runtime(s, undefined, environment);
+  await a.module.connectAnalytics("A");
+  await tick();
+  const before = s.data.get("rachas.analytics.v1.A");
+  await b.module.connectAnalytics("A");
+  b.module.track("checkin_hecho", { desafio_id: challenge });
+  await b.module.flushAnalytics();
+  assert.equal(b.module.analyticsState().enabled, false);
+  assert.equal(s.data.get("rachas.analytics.v1.A"), before);
+  assert.equal(b.calls.length, 0);
 });

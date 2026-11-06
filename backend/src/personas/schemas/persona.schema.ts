@@ -8,6 +8,9 @@ export class Persona {
   @Prop({ default: false })
   compartirDatosUso!: boolean;
 
+  @Prop({ default: 0, select: false })
+  analyticsWriteVersion!: number;
+
   @Prop()
   firebaseUid?: string;
 
@@ -58,6 +61,7 @@ PersonaSchema.set('toJSON', {
     >;
     delete resultado._id;
     delete resultado.__v;
+    delete resultado.analyticsWriteVersion;
     delete resultado.firebaseUid;
     delete resultado.compartirDatosUso;
     return resultado;
