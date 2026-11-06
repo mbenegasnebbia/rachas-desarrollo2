@@ -13,10 +13,11 @@ export class ApiError extends Error {
 interface Opciones {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
+  expectedUid?: string;
 }
 export async function request<T>(
   path: string,
-  { method = "GET", body }: Opciones = {},
+  { method = "GET", body, expectedUid }: Opciones = {},
 ): Promise<T> {
   if (!API_URL) throw new ApiError(0, "Falta configurar EXPO_PUBLIC_API_URL.");
   const controller = new AbortController();
@@ -25,7 +26,7 @@ export async function request<T>(
     for (let intento = 0; intento < 2; intento++) {
       let token: string | null;
       try {
-        token = await obtenerToken(intento === 1);
+        token = await obtenerToken(intento === 1, expectedUid);
       } catch {
         throw new ApiError(
           401,

@@ -42,7 +42,8 @@ export class AppVersionGuard implements CanActivate {
     if (
       path === '' ||
       path === '/version-policy' ||
-      /^\/auth(?:\/|$)/.test(path)
+      /^\/auth(?:\/|$)/.test(path) ||
+      /^\/analytics\/(events|consent)$/.test(path)
     )
       return true;
     const version = request.headers['x-app-version'] ?? '1.0.0';

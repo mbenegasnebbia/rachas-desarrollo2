@@ -5,6 +5,9 @@ export type PersonaDocument = HydratedDocument<Persona>;
 
 @Schema()
 export class Persona {
+  @Prop({ default: false })
+  compartirDatosUso!: boolean;
+
   @Prop()
   firebaseUid?: string;
 
@@ -56,6 +59,7 @@ PersonaSchema.set('toJSON', {
     delete resultado._id;
     delete resultado.__v;
     delete resultado.firebaseUid;
+    delete resultado.compartirDatosUso;
     return resultado;
   },
 });

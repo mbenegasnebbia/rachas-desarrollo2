@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useAnalytics } from "@/analytics/AnalyticsProvider";
+import { track, analyticsContext } from "@/analytics/runtime";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { AppState, Linking, Platform, Text, View } from "react-native";
 import { API_URL } from "@/api/client";
 import {
@@ -12,6 +20,8 @@ import {
 import { Boton, estilos, Pantalla } from "./UI";
 
 export function VersionGate({ children }: { children: ReactNode }) {
+  const analytics = useAnalytics();
+  const shown = useRef(new Set<string>());
   const [policy, setPolicy] = useState<VersionPolicy | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -70,6 +80,34 @@ export function VersionGate({ children }: { children: ReactNode }) {
     (!!policy && compareVersions(APP_VERSION, policy.minimumVersion) < 0);
   const recommended =
     !!policy && compareVersions(APP_VERSION, policy.recommendedVersion) < 0;
+  useEffect(() => {
+    if (!policy || !analytics.ready || !analytics.enabled || analytics.busy)
+      return;
+    const type = mandatory
+      ? "obligatoria"
+      : recommended && dismissed !== policy.recommendedVersion
+        ? "recomendada"
+        : null;
+    if (!type) return;
+    const target = mandatory
+      ? policy.minimumVersion
+      : policy.recommendedVersion;
+    const key = `${analyticsContext()}:${type}:${target}`;
+    if (shown.current.has(key)) return;
+    shown.current.add(key);
+    track("aviso_actualizacion_mostrado", {
+      tipo: type,
+      version_objetivo: target,
+    });
+  }, [
+    policy,
+    mandatory,
+    recommended,
+    dismissed,
+    analytics.ready,
+    analytics.enabled,
+    analytics.busy,
+  ]);
   const update = async () => {
     try {
       if (policy?.updateUrl) await Linking.openURL(policy.updateUrl);

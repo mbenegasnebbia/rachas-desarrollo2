@@ -30,9 +30,16 @@ export async function ingresarConGoogle(): Promise<void> {
   await signInWithPopup(obtenerAuthFirebase(), provider);
 }
 
-export async function obtenerToken(force = false): Promise<string | null> {
-  const user = obtenerAuthFirebase().currentUser;
-  return user ? user.getIdToken(force) : null;
+export async function obtenerToken(
+  force = false,
+  expectedUid?: string,
+): Promise<string | null> {
+  const auth = obtenerAuthFirebase(),
+    user = auth.currentUser;
+  if (!user || (expectedUid && user.uid !== expectedUid)) return null;
+  const token = await user.getIdToken(force);
+  if (expectedUid && auth.currentUser !== user) return null;
+  return token;
 }
 
 export async function cerrarSesionFirebase(): Promise<void> {

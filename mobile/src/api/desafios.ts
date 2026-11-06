@@ -1,3 +1,4 @@
+import { track, analyticsContext } from "@/analytics/runtime";
 import { request } from "./client";
 import type { Desafio, CrearDesafio, Pagina, Ranking, Persona } from "@/types";
 export const listarDesafios = (pagina = 1, estado = "", categoria = "") =>
@@ -9,20 +10,36 @@ export const listarDesafios = (pagina = 1, estado = "", categoria = "") =>
   );
 export const obtenerDesafio = (id: string) =>
   request<Desafio>(`/desafios/${id}`);
-export const crearDesafio = (body: CrearDesafio) =>
-  request<Desafio>("/desafios", { method: "POST", body });
+export const crearDesafio = async (body: CrearDesafio) => {
+  const context = analyticsContext();
+  const result = await request<Desafio>("/desafios", { method: "POST", body });
+  track(
+    "desafio_creado",
+    { desafio_id: result.id, categoria: result.categoria },
+    context,
+  );
+  return result;
+};
 export const editarDesafio = (id: string, body: Partial<CrearDesafio>) =>
   request<Desafio>(`/desafios/${id}`, { method: "PATCH", body });
-export const unirse = (codigo: string) =>
-  request<Desafio>(
+export const unirse = async (codigo: string) => {
+  const context = analyticsContext();
+  const result = await request<Desafio>(
     `/desafios/unirse/${encodeURIComponent(codigo.trim().toUpperCase())}`,
     { method: "POST" },
   );
+  track("desafio_unido", { desafio_id: result.id }, context);
+  return result;
+};
 export const abandonar = (id: string) =>
   request<Desafio>(`/desafios/${id}/abandonar`, { method: "POST" });
 export const cancelar = (id: string) =>
   request<Desafio>(`/desafios/${id}/cancelar`, { method: "PATCH" });
 export const participantes = (id: string) =>
   request<Persona[]>(`/desafios/${id}/participantes`);
-export const ranking = (id: string) =>
-  request<Ranking>(`/desafios/${id}/ranking`);
+export const ranking = async (id: string) => {
+  const context = analyticsContext();
+  const result = await request<Ranking>(`/desafios/${id}/ranking`);
+  track("ranking_consultado", { desafio_id: id }, context);
+  return result;
+};

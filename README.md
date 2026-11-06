@@ -192,3 +192,21 @@ Se seleccionó Firebase Authentication para implementar el inicio de sesión con
 Esta arquitectura permite separar la autenticación de la lógica de negocio: Firebase verifica la identidad del usuario, mientras que MongoDB Atlas conserva los perfiles, desafíos, participantes y registros de actividad.
 
 Se evaluó Auth0 como alternativa válida, pero se priorizó Firebase por ajustarse al alcance del proyecto, centrado en autenticación con Google, sin requerimientos avanzados de gestión empresarial de identidades.
+
+## Parte IV — Analytics y tracking
+
+El [tracking plan](docs/tracking-plan.md) define los siete eventos mínimos de la
+Consigna C, el consentimiento apagado por defecto, la cola offline y los
+pipelines de métricas. El perfil incluye Compartir datos de uso; no se usa
+Firebase Analytics ni se almacenan tokens en la cola.
+
+Endpoints autenticados: POST /v2/analytics/events, GET/PATCH
+/v2/analytics/consent y GET /v2/analytics/metrics. Hay variantes v1/legacy.
+Los eventos y consentimiento tienen una excepción de versión para medir el
+aviso obligatorio; la autenticación Firebase continúa siendo obligatoria.
+
+Antes de habilitar recepción, provisionar manualmente la colección e índices
+TTL de 30 días y único persona+eventId descritos en el plan. La aplicación no
+los crea. Configurar ANALYTICS_READER_UIDS para permitir las métricas globales
+solo a operadores; vacío deniega a todos. Mantener SEED_ENABLED=false y
+MONGODB_AUTO_INIT_ENABLED=false. No se modifican los .env existentes.

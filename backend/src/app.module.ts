@@ -1,3 +1,4 @@
+import { AnalyticsModule } from './analytics/analytics.module';
 import { VersioningModule } from './versioning/versioning.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { AuthModule } from './auth/auth.module';
@@ -28,6 +29,7 @@ import { mongoOptions } from './common/mongo-options';
 
     VersioningModule,
     AuthModule,
+    AnalyticsModule,
     RealtimeModule,
     ProgresoModule,
     PersonasModule,

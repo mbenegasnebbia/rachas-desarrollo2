@@ -16,7 +16,10 @@ export function ingresarConGoogle(): Promise<void> {
     ),
   );
 }
-export function obtenerToken(_force = false): Promise<string | null> {
+export function obtenerToken(
+  _force = false,
+  _expectedUid?: string,
+): Promise<string | null> {
   return Promise.resolve(null);
 }
 export function cerrarSesionFirebase(): Promise<void> {

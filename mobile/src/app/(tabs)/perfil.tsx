@@ -1,5 +1,6 @@
+import { useAnalytics } from "@/analytics/AnalyticsProvider";
 import { useCallback, useState } from "react";
-import { Text } from "react-native";
+import { Text, Switch, View } from "react-native";
 import { obtenerPersona, actualizarPersona, resultados } from "@/api/personas";
 import { useSesion } from "@/session/Sesion";
 import { useCarga, useAccion } from "@/hooks/useCarga";
@@ -16,6 +17,7 @@ import { validarPerfil } from "@/utils/validaciones";
 import { router } from "expo-router";
 export default function Perfil() {
   const sesion = useSesion();
+  const analytics = useAnalytics();
   const id = sesion.persona?.id ?? "";
   const carga = useCarga(
     useCallback(
@@ -63,6 +65,22 @@ export default function Perfil() {
           })
         }
       />
+      <View style={estilos.tarjeta}>
+        <Text style={estilos.subtitulo}>Compartir datos de uso</Text>
+        <Text style={estilos.texto}>
+          Eventos de uso sin nombres, emails ni notas. Podés desactivarlo cuando
+          quieras.
+        </Text>
+        <Switch
+          accessibilityLabel="Compartir datos de uso"
+          value={analytics.enabled}
+          disabled={!analytics.ready || analytics.busy}
+          onValueChange={(value) => {
+            void analytics.setConsent(value);
+          }}
+        />
+        <Aviso texto={analytics.error} />
+      </View>
       <Text style={estilos.subtitulo}>Desafíos finalizados</Text>
       {carga.datos?.resultados.length === 0 && (
         <Text style={estilos.texto}>Todavía no terminaste ningún desafío.</Text>
