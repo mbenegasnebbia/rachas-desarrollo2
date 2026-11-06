@@ -12,6 +12,7 @@ import {
   Pantalla,
   estilos,
 } from "@/components/UI";
+import { GooglePrueba } from "@/components/GooglePrueba";
 import { validarRegistro } from "@/utils/validaciones";
 export default function Ingreso() {
   const sesion = useSesion();
@@ -29,6 +30,7 @@ export default function Ingreso() {
         Elegí tu persona o registrate para empezar. El ingreso es provisorio
         hasta la parte III.
       </Text>
+      <GooglePrueba />
       <EstadoCarga
         {...carga}
         vacio={carga.datos?.length === 0}
