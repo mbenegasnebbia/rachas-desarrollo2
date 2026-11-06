@@ -1,3 +1,4 @@
+import { appHeaders, toV2, fromV2, reportUpgrade } from "./version";
 import { obtenerToken } from "@/auth/session";
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -32,13 +33,14 @@ export async function request<T>(
         );
       }
       if (!token) throw new ApiError(401, "Ingresá con Google para continuar.");
-      const res = await fetch(API_URL.replace(/\/$/, "") + path, {
+      const res = await fetch(API_URL.replace(/\/$/, "") + "/v2" + path, {
         method,
         headers: {
           "Content-Type": "application/json",
+          ...appHeaders(),
           Authorization: "Bearer " + token,
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : JSON.stringify(toV2(body)),
         signal: controller.signal,
         credentials: "omit",
         cache: "no-store",
@@ -56,6 +58,7 @@ export async function request<T>(
           "El servidor devolvió una respuesta inesperada.",
         );
       }
+      if (res.status === 426) reportUpgrade(data);
       if (!res.ok) {
         const mensaje =
           typeof data === "object" && data !== null && "message" in data
@@ -72,7 +75,7 @@ export async function request<T>(
                 : "No se pudo completar la operación.",
         );
       }
-      return data as T;
+      return fromV2(data) as T;
     }
     throw new ApiError(401, "No se pudo renovar la sesión.");
   } catch (e) {

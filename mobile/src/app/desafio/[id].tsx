@@ -195,6 +195,7 @@ export default function Detalle() {
                     if (numero !== undefined && !Number.isFinite(numero))
                       throw new Error("Ingresá un valor numérico válido.");
                     await checkin(id, {
+                      zonaHoraria: persona?.zonaHoraria ?? "America/Argentina/Buenos_Aires",
                       fecha:
                         dia === "HOY"
                           ? hoy(persona?.zonaHoraria)

@@ -15,6 +15,11 @@ export class CreateCheckinDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  zonaHoraria?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(140)
   nota?: string;
 

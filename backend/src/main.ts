@@ -1,11 +1,22 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import {
+  ValidationPipe,
+  VersioningType,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
+import { LegacyUsage } from './versioning/versioning.module';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: ['1', '2', VERSION_NEUTRAL],
+  });
+  app.enableCors({ exposedHeaders: ['Deprecation', 'Sunset'] });
+  const usage = app.get(LegacyUsage);
+  app.use(usage.use.bind(usage));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -42,6 +42,16 @@ describe('Registrar y deshacer check-ins', () => {
     );
     return { service, guardar };
   }
+  it('rechaza una zona distinta de la Persona sin guardar', async () => {
+    const { service, guardar } = preparar();
+    await expect(
+      service.create(desafioId.toString(), personaId.toString(), {
+        fecha: '2026-10-30',
+        zonaHoraria: 'Asia/Tokyo',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(guardar).not.toHaveBeenCalled();
+  });
   it('guarda bonus al completar la tercera fecha consecutiva', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-10-30T15:00:00Z'));
     const { service, guardar } = preparar(['2026-10-28', '2026-10-29']);

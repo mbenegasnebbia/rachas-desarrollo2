@@ -31,6 +31,9 @@ export class Checkin {
   @Prop({ default: 0, min: 0 })
   puntos!: number;
 
+  @Prop({ maxlength: 100 })
+  zonaHoraria?: string;
+
   @Prop()
   valor?: number;
 }

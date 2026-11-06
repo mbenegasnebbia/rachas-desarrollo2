@@ -1,3 +1,4 @@
+import { VersioningModule } from './versioning/versioning.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { AuthModule } from './auth/auth.module';
 import { ProgresoModule } from './progreso/progreso.module';
@@ -25,6 +26,7 @@ import { mongoOptions } from './common/mongo-options';
       useFactory: mongoOptions,
     }),
 
+    VersioningModule,
     AuthModule,
     RealtimeModule,
     ProgresoModule,

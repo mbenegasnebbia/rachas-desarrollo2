@@ -57,6 +57,7 @@ export default function Inicio() {
               void accion.ejecutar(async () => {
                 await checkin(r.desafio.id, {
                   fecha: hoy(persona?.zonaHoraria),
+                  zonaHoraria: persona?.zonaHoraria ?? "America/Argentina/Buenos_Aires",
                 });
                 await carga.cargar();
               })

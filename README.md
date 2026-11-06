@@ -2,6 +2,19 @@
 
 Aplicación para crear desafíos de hábitos, invitar participantes y registrar avances diarios. Las **Partes I y II** incluyen una API REST con NestJS y MongoDB Atlas y una app React Native / Expo con ingreso provisional, desafíos, check-ins, rachas y ranking.
 
+## Estado actual y Parte IV
+
+La sesión vigente usa Firebase Authentication + Persona en MongoDB; Socket.IO conserva
+las salas y alientos de Parte III. La app ahora se prepara como **1.1.0** y consume
+**/v2**. Las rutas sin prefijo y **/v1** conservan el contrato anterior y requieren
+Firebase; `x-usuario-id` no autentica.
+
+Consultar [Parte IV: contratos y política](docs/parte-4-versionado.md) para la
+configuración, las excepciones al 426 y la validación manual. Las secciones
+históricas de Partes I/II que siguen no reemplazan la configuración actual de
+autenticación. Mantener `SEED_ENABLED=false` y
+`MONGODB_AUTO_INIT_ENABLED=false` para arrancar sin escrituras automáticas.
+
 ## Tecnologías
 
 - **Backend:** Node.js, NestJS, TypeScript, Mongoose.
