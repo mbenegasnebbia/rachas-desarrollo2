@@ -1,3 +1,4 @@
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DesafiosController } from './desafios.controller';
 import { DesafiosService } from './desafios.service';
@@ -8,7 +9,10 @@ describe('DesafiosController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DesafiosController],
-      providers: [{ provide: DesafiosService, useValue: {} }],
+      providers: [
+        { provide: DesafiosService, useValue: {} },
+        { provide: RealtimeEventsService, useValue: { publish: () => {} } },
+      ],
     }).compile();
 
     controller = module.get<DesafiosController>(DesafiosController);

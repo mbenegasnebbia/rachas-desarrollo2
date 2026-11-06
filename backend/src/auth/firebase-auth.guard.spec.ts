@@ -41,6 +41,7 @@ describe('FirebaseAuthGuard', () => {
     } as unknown as FirebaseRequest;
     const handler = () => {};
     const context = {
+      getType: () => 'http',
       getHandler: () => handler,
       getClass: () => class TestController {},
       switchToHttp: () => ({ getRequest: () => request }),

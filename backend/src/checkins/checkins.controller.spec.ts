@@ -1,3 +1,4 @@
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CheckinsController } from './checkins.controller';
 import { CheckinsService } from './checkins.service';
@@ -8,7 +9,10 @@ describe('CheckinsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CheckinsController],
-      providers: [{ provide: CheckinsService, useValue: {} }],
+      providers: [
+        { provide: CheckinsService, useValue: {} },
+        { provide: RealtimeEventsService, useValue: { publish: () => {} } },
+      ],
     }).compile();
 
     controller = module.get<CheckinsController>(CheckinsController);

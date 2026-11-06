@@ -1,3 +1,4 @@
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CurrentPersonaId, requireOwner } from '../auth/auth.decorators';
 import {
   Controller,
@@ -15,23 +16,34 @@ import { CreateCheckinDto } from './dto/create-checkin.dto';
 
 @Controller('desafios/:desafioId/checkins')
 export class CheckinsController {
-  constructor(private checkinsService: CheckinsService) {}
+  constructor(
+    private checkinsService: CheckinsService,
+    private readonly events: RealtimeEventsService,
+  ) {}
 
   @Post()
-  create(
+  async create(
     @Param('desafioId') desafioId: string,
     @CurrentPersonaId() usuarioId: string,
     @Body() datos: CreateCheckinDto,
   ) {
-    return this.checkinsService.create(desafioId, usuarioId, datos);
+    const result = await this.checkinsService.create(
+      desafioId,
+      usuarioId,
+      datos,
+    );
+    this.events.publish(desafioId, 'checkin:registrado', usuarioId);
+    return result;
   }
 
   @Delete('ultimo')
-  undo(
+  async undo(
     @Param('desafioId') desafioId: string,
     @CurrentPersonaId() usuarioId: string,
   ) {
-    return this.checkinsService.undo(desafioId, usuarioId);
+    const result = await this.checkinsService.undo(desafioId, usuarioId);
+    this.events.publish(desafioId, 'checkin:deshecho', usuarioId);
+    return result;
   }
 
   @Get()

@@ -1,3 +1,5 @@
+import { useDesafioRealtime } from "@/hooks/useDesafioRealtime";
+import { EMOJIS } from "@/hooks/realtime.types";
 import { useCallback, useState } from "react";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Text, View } from "react-native";
@@ -51,7 +53,6 @@ export default function Detalle() {
   const accion = useAccion();
   const avance = useAccion();
   const ocupado = accion.ocupado || avance.ocupado;
-  if (!sesion.cargando && !persona?.perfilCompleto) return <Redirect href="/ingreso" />;
   const d = carga.datos?.desafio,
     tabla = carga.datos?.tabla;
   const propio = tabla?.items.find((p) => p.personaId === persona?.id);
@@ -60,6 +61,8 @@ export default function Detalle() {
   const participa = !!persona && !!d?.participantes.includes(persona.id);
   const abandono = !!persona && !!d?.exParticipantes.includes(persona.id);
   const completo = !!d && d.participantes.length >= d.maxParticipantes;
+  const realtime = useDesafioRealtime(id, persona?.id, participa && vigente, carga.cargar);
+  if (!sesion.cargando && !persona?.perfilCompleto) return <Redirect href="/ingreso" />;
   return (
     <Pantalla refrescar={carga.cargar} cargando={carga.cargando}>
       <EstadoCarga {...carga} reintentar={carga.cargar} />
@@ -99,6 +102,31 @@ export default function Detalle() {
               {p.nombre} · @{p.alias}
             </Text>
           ))}
+          {participa && vigente ? (
+            <View style={estilos.tarjeta}>
+              <Text style={estilos.subtitulo}>Alientos</Text>
+              <Text style={estilos.texto}>Tiempo real: {realtime.estado}</Text>
+              <Aviso texto={realtime.error} />
+              {realtime.estado !== "Conectado" ? (
+                <Boton titulo="Reconectar" secundario onPress={realtime.reconectar} />
+              ) : null}
+              <View style={estilos.fila}>
+                {EMOJIS.map((emoji) => (
+                  <Boton key={emoji} titulo={emoji} secundario
+                    disabled={!activo || realtime.estado !== "Conectado" || realtime.enviando || realtime.enEspera}
+                    onPress={() => realtime.enviar(emoji)} />
+                ))}
+              </View>
+              <Text accessibilityLiveRegion="polite" style={estilos.texto}>
+                {realtime.enEspera ? "Esperá antes de volver a alentar (10 segundos entre envíos)." : realtime.aviso}
+              </Text>
+              {realtime.alientos.map((aliento) => (
+                <Text key={aliento.id} accessibilityLiveRegion="polite" style={estilos.texto}>
+                  {aliento.emoji} {aliento.nombre} envió un aliento
+                </Text>
+              ))}
+            </View>
+          ) : null}
           <Text style={estilos.subtitulo}>Ranking</Text>
           {tabla?.items.length === 0 && (
             <Text style={estilos.texto}>

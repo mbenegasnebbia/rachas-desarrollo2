@@ -18,6 +18,10 @@ export class FirebasePersonaService {
     @InjectModel(Persona.name) private readonly personas: Model<Persona>,
   ) {}
 
+  async findExisting(uid: string): Promise<PersonaDocument | null> {
+    return this.personas.findOne({ firebaseUid: uid });
+  }
+
   private async requireUidIndex(): Promise<void> {
     try {
       const indexes = await this.personas.collection.indexes();

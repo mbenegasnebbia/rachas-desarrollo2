@@ -90,4 +90,23 @@ describe('AuthService', () => {
     );
     expect(verifyIdToken).not.toHaveBeenCalled();
   });
+  it('obtiene una expiración para el socket sin devolver el token', async () => {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    verifyIdToken.mockResolvedValue({
+      uid: 'uid-prueba',
+      exp,
+    } as DecodedIdToken);
+    const result = await service.verifySocketToken('token-simulado');
+    expect(result.expiresAt).toBe(exp * 1000);
+    expect(result).not.toHaveProperty('token');
+  });
+  it('rechaza sesiones socket sin expiración válida', async () => {
+    verifyIdToken.mockResolvedValue({
+      uid: 'uid-prueba',
+      exp: 0,
+    } as DecodedIdToken);
+    await expect(
+      service.verifySocketToken('token-simulado'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
 });

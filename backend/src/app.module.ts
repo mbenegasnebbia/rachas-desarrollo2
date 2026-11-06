@@ -1,3 +1,4 @@
+import { RealtimeModule } from './realtime/realtime.module';
 import { AuthModule } from './auth/auth.module';
 import { ProgresoModule } from './progreso/progreso.module';
 import { Module } from '@nestjs/common';
@@ -25,6 +26,7 @@ import { mongoOptions } from './common/mongo-options';
     }),
 
     AuthModule,
+    RealtimeModule,
     ProgresoModule,
     PersonasModule,
     DesafiosModule,

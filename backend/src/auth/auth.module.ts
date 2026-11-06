@@ -22,6 +22,6 @@ import { FirebaseAuthGuard } from './firebase-auth.guard';
     FirebasePersonaService,
     { provide: APP_GUARD, useExisting: FirebaseAuthGuard },
   ],
-  exports: [AuthService, FirebaseAuthGuard],
+  exports: [AuthService, FirebaseAuthGuard, FirebasePersonaService],
 })
 export class AuthModule {}

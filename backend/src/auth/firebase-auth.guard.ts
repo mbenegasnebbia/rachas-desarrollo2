@@ -24,6 +24,8 @@ export class FirebaseAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Los sockets se autentican en el middleware del gateway y autorizan cada mensaje.
+    if (context.getType() === 'ws') return true;
     const targets = [context.getHandler(), context.getClass()];
     if (this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE, targets))
       return true;

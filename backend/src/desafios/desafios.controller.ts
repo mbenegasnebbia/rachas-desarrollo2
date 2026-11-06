@@ -1,3 +1,4 @@
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CurrentPersonaId } from '../auth/auth.decorators';
 import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
 
@@ -9,7 +10,10 @@ import { Query } from '@nestjs/common';
 
 @Controller('desafios')
 export class DesafiosController {
-  constructor(private desafiosService: DesafiosService) {}
+  constructor(
+    private desafiosService: DesafiosService,
+    private readonly events: RealtimeEventsService,
+  ) {}
 
   @Post()
   create(
@@ -39,18 +43,27 @@ export class DesafiosController {
   }
 
   @Patch(':id/cancelar')
-  cancel(@Param('id') id: string, @CurrentPersonaId() usuarioId: string) {
-    return this.desafiosService.cancel(id, usuarioId);
+  async cancel(@Param('id') id: string, @CurrentPersonaId() usuarioId: string) {
+    const result = await this.desafiosService.cancel(id, usuarioId);
+    this.events.publish(id, 'desafio:cancelado', usuarioId);
+    return result;
   }
 
   @Post('unirse/:codigo')
-  join(@Param('codigo') codigo: string, @CurrentPersonaId() usuarioId: string) {
-    return this.desafiosService.join(codigo, usuarioId);
+  async join(
+    @Param('codigo') codigo: string,
+    @CurrentPersonaId() usuarioId: string,
+  ) {
+    const result = await this.desafiosService.join(codigo, usuarioId);
+    this.events.publish(result._id.toString(), 'participante:unido', usuarioId);
+    return result;
   }
 
   @Post(':id/abandonar')
-  leave(@Param('id') id: string, @CurrentPersonaId() usuarioId: string) {
-    return this.desafiosService.leave(id, usuarioId);
+  async leave(@Param('id') id: string, @CurrentPersonaId() usuarioId: string) {
+    const result = await this.desafiosService.leave(id, usuarioId);
+    this.events.publish(id, 'participante:abandono', usuarioId);
+    return result;
   }
 
   @Get(':id/participantes')

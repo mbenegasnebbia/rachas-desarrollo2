@@ -1,3 +1,4 @@
+import { RealtimeEventsModule } from '../realtime/realtime-events.module';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
@@ -10,6 +11,7 @@ import { Persona, PersonaSchema } from '../personas/schemas/persona.schema';
 
 @Module({
   imports: [
+    RealtimeEventsModule,
     MongooseModule.forFeature([
       { name: Checkin.name, schema: CheckinSchema },
       { name: Desafio.name, schema: DesafioSchema },
