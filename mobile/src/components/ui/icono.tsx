@@ -42,7 +42,7 @@ export function Icono({
       height={size ?? tema.iconos.mediano}
       viewBox="0 0 24 24"
       fill="none"
-      accessible={false}
+      aria-hidden={true}
     >
       <Path
         d={trazos[nombre]}
