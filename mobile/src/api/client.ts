@@ -1,3 +1,4 @@
+import { appHeaders, toV2, fromV2, reportUpgrade } from "./version";
 import { obtenerToken } from "@/auth/session";
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -12,10 +13,11 @@ export class ApiError extends Error {
 interface Opciones {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
+  expectedUid?: string;
 }
 export async function request<T>(
   path: string,
-  { method = "GET", body }: Opciones = {},
+  { method = "GET", body, expectedUid }: Opciones = {},
 ): Promise<T> {
   if (!API_URL) throw new ApiError(0, "Falta configurar EXPO_PUBLIC_API_URL.");
   const controller = new AbortController();
@@ -24,7 +26,7 @@ export async function request<T>(
     for (let intento = 0; intento < 2; intento++) {
       let token: string | null;
       try {
-        token = await obtenerToken(intento === 1);
+        token = await obtenerToken(intento === 1, expectedUid);
       } catch {
         throw new ApiError(
           401,
@@ -32,13 +34,14 @@ export async function request<T>(
         );
       }
       if (!token) throw new ApiError(401, "Ingresá con Google para continuar.");
-      const res = await fetch(API_URL.replace(/\/$/, "") + path, {
+      const res = await fetch(API_URL.replace(/\/$/, "") + "/v2" + path, {
         method,
         headers: {
           "Content-Type": "application/json",
+          ...appHeaders(),
           Authorization: "Bearer " + token,
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : JSON.stringify(toV2(body)),
         signal: controller.signal,
         credentials: "omit",
         cache: "no-store",
@@ -56,6 +59,7 @@ export async function request<T>(
           "El servidor devolvió una respuesta inesperada.",
         );
       }
+      if (res.status === 426) reportUpgrade(data);
       if (!res.ok) {
         const mensaje =
           typeof data === "object" && data !== null && "message" in data
@@ -72,7 +76,7 @@ export async function request<T>(
                 : "No se pudo completar la operación.",
         );
       }
-      return data as T;
+      return fromV2(data) as T;
     }
     throw new ApiError(401, "No se pudo renovar la sesión.");
   } catch (e) {

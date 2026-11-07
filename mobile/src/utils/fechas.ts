@@ -17,10 +17,16 @@ export function fechaVisible(fecha: string) {
   return fecha.slice(0, 10).split("-").reverse().join("/");
 }
 export function estadoDe(d: {
+  estado?: string;
   cancelado: boolean;
   fechaInicio: string;
   fechaFin: string;
 }) {
+  if (d.estado) {
+    return ["PROGRAMADO", "ACTIVO", "FINALIZADO", "CANCELADO", "PAUSADO"].includes(d.estado)
+      ? d.estado
+      : "DESCONOCIDO";
+  }
   const dia = hoy();
   return d.cancelado
     ? "CANCELADO"

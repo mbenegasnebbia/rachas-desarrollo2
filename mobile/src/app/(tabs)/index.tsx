@@ -16,7 +16,9 @@ import {
 import { hoy } from "@/utils/fechas";
 export default function Inicio() {
   const { persona } = useSesion();
-  const carga = useCarga(useCallback(() => resumen(), []));
+  const carga = useCarga(
+    useCallback(() => resumen(persona?.zonaHoraria), [persona?.zonaHoraria]),
+  );
   const accion = useAccion();
   return (
     <Pantalla refrescar={carga.cargar} cargando={carga.cargando}>
@@ -57,6 +59,8 @@ export default function Inicio() {
               void accion.ejecutar(async () => {
                 await checkin(r.desafio.id, {
                   fecha: hoy(persona?.zonaHoraria),
+                  zonaHoraria:
+                    persona?.zonaHoraria ?? "America/Argentina/Buenos_Aires",
                 });
                 await carga.cargar();
               })

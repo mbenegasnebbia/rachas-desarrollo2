@@ -22,6 +22,7 @@ describe('Puntos y rachas', () => {
       { fecha: '2026-10-29', puntos: 10 },
     ];
     expect(estadisticas(registros, '2026-10-30')).toEqual({
+      _bonusPorRacha: 0,
       puntos: 20,
       rachaActual: 2,
       mejorRacha: 2,
@@ -42,7 +43,13 @@ describe('Puntos y rachas', () => {
         fechas.map((fecha) => ({ fecha })),
         '2026-10-30',
       ),
-    ).toEqual({ puntos: 0, rachaActual: 2, mejorRacha: 3, checkinHoy: true });
+    ).toEqual({
+      _bonusPorRacha: 0,
+      puntos: 0,
+      rachaActual: 2,
+      mejorRacha: 3,
+      checkinHoy: true,
+    });
   });
   it('resuelve mes, año y año bisiesto sin depender de la zona del servidor', () => {
     expect(moverDia('2024-03-01', -1)).toBe('2024-02-29');
@@ -56,6 +63,7 @@ describe('Puntos y rachas', () => {
   });
   it('no cuenta días futuros y devuelve cero sin check-ins', () => {
     expect(estadisticas([], '2026-10-30')).toEqual({
+      _bonusPorRacha: 0,
       puntos: 0,
       rachaActual: 0,
       mejorRacha: 0,

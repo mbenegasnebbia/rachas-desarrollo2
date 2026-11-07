@@ -137,7 +137,9 @@ export class DesafiosService {
   ) {
     if (
       estado &&
-      !['PROGRAMADO', 'ACTIVO', 'FINALIZADO', 'CANCELADO'].includes(estado)
+      !['PROGRAMADO', 'ACTIVO', 'FINALIZADO', 'CANCELADO', 'PAUSADO'].includes(
+        estado,
+      )
     )
       throw new BadRequestException('Estado inválido');
     if (
@@ -145,6 +147,17 @@ export class DesafiosService {
       !['SALUD', 'ESTUDIO', 'FINANZAS', 'BIENESTAR', 'OTRO'].includes(categoria)
     )
       throw new BadRequestException('Categoría inválida');
+    // PAUSADO is part of the v2 vocabulary. No pause transition exists yet,
+    // so there are no persisted paused challenges to include.
+    if (estado === 'PAUSADO') {
+      return {
+        items: [],
+        total: 0,
+        pagina: paginacion.pagina,
+        limite: paginacion.limite,
+        paginas: 0,
+      };
+    }
     const hoy = new Date(this.obtenerHoy() + 'T00:00:00Z');
     const manana = new Date(hoy.getTime() + 86400000);
     const filtro: Record<string, unknown> = categoria ? { categoria } : {};

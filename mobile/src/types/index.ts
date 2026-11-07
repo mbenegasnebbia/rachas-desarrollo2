@@ -17,6 +17,7 @@ export interface CrearPersona {
 }
 
 export interface Desafio {
+  estado?: string;
   id: string;
   nombre: string;
   descripcion?: string;
@@ -51,12 +52,13 @@ export interface Checkin {
 }
 
 export interface CrearCheckin {
+  zonaHoraria: string;
   fecha: string;
   nota?: string;
   valor?: number;
 }
 
-export type Estado = "PROGRAMADO" | "ACTIVO" | "FINALIZADO" | "CANCELADO";
+export type Estado = "PROGRAMADO" | "ACTIVO" | "FINALIZADO" | "CANCELADO" | "PAUSADO" | "DESCONOCIDO";
 export interface Pagina<T> {
   items: T[];
   total: number;

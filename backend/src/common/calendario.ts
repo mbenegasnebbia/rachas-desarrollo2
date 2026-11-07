@@ -48,6 +48,11 @@ export function estadisticas(
     cursor = moverDia(cursor, -1);
   }
   return {
+    // Representation metadata only: totals, ordering and scoring remain unchanged.
+    _bonusPorRacha: registros.reduce(
+      (sum, c) => sum + Math.max(0, (c.puntos ?? 0) - 10),
+      0,
+    ),
     puntos: registros.reduce((s, c) => s + (c.puntos ?? 0), 0),
     rachaActual,
     mejorRacha,

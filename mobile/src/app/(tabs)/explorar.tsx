@@ -27,6 +27,7 @@ const estados = [
   "ACTIVO",
   "FINALIZADO",
   "CANCELADO",
+          "PAUSADO",
 ] as const;
 export default function Explorar() {
   const [categoria, setCategoria] = useState<string>(""),

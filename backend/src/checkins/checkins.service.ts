@@ -78,6 +78,11 @@ export class CheckinsService {
       throw new NotFoundException('Persona o desafío no encontrado');
     }
 
+    // v2 requires this field at the HTTP boundary. Never trust a client timezone
+    // to replace the authenticated profile's calendar rules.
+    if (datos.zonaHoraria && datos.zonaHoraria !== persona.zonaHoraria)
+      throw new BadRequestException('zonaHoraria debe coincidir con tu perfil');
+
     // 3. Verificar que participe
     const participa = desafio.participantes.some(
       (id) => id.toString() === usuarioId,

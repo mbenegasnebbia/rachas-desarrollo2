@@ -2,6 +2,19 @@
 
 Aplicación para crear desafíos de hábitos, invitar participantes y registrar avances diarios. Las **Partes I y II** incluyen una API REST con NestJS y MongoDB Atlas y una app React Native / Expo con ingreso provisional, desafíos, check-ins, rachas y ranking.
 
+## Estado actual y Parte IV
+
+La sesión vigente usa Firebase Authentication + Persona en MongoDB; Socket.IO conserva
+las salas y alientos de Parte III. La app ahora se prepara como **1.1.0** y consume
+**/v2**. Las rutas sin prefijo y **/v1** conservan el contrato anterior y requieren
+Firebase; `x-usuario-id` no autentica.
+
+Consultar [Parte IV: contratos y política](docs/parte-4-versionado.md) para la
+configuración, las excepciones al 426 y la validación manual. Las secciones
+históricas de Partes I/II que siguen no reemplazan la configuración actual de
+autenticación. Mantener `SEED_ENABLED=false` y
+`MONGODB_AUTO_INIT_ENABLED=false` para arrancar sin escrituras automáticas.
+
 ## Tecnologías
 
 - **Backend:** Node.js, NestJS, TypeScript, Mongoose.
@@ -179,3 +192,21 @@ Se seleccionó Firebase Authentication para implementar el inicio de sesión con
 Esta arquitectura permite separar la autenticación de la lógica de negocio: Firebase verifica la identidad del usuario, mientras que MongoDB Atlas conserva los perfiles, desafíos, participantes y registros de actividad.
 
 Se evaluó Auth0 como alternativa válida, pero se priorizó Firebase por ajustarse al alcance del proyecto, centrado en autenticación con Google, sin requerimientos avanzados de gestión empresarial de identidades.
+
+## Parte IV — Analytics y tracking
+
+El [tracking plan](docs/tracking-plan.md) define los siete eventos mínimos de la
+Consigna C, el consentimiento apagado por defecto, la cola offline y los
+pipelines de métricas. El perfil incluye Compartir datos de uso; no se usa
+Firebase Analytics ni se almacenan tokens en la cola.
+
+Endpoints autenticados: POST /v2/analytics/events, GET/PATCH
+/v2/analytics/consent y GET /v2/analytics/metrics. Hay variantes v1/legacy.
+Los eventos y consentimiento tienen una excepción de versión para medir el
+aviso obligatorio; la autenticación Firebase continúa siendo obligatoria.
+
+Antes de habilitar recepción, provisionar manualmente la colección e índices
+TTL de 30 días y único persona+eventId descritos en el plan. La aplicación no
+los crea. Configurar ANALYTICS_READER_UIDS para permitir las métricas globales
+solo a operadores; vacío deniega a todos. Mantener SEED_ENABLED=false y
+MONGODB_AUTO_INIT_ENABLED=false. No se modifican los .env existentes.
