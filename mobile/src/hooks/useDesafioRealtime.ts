@@ -1,4 +1,4 @@
-import type { Aliento } from "./realtime.types";
+import type { Aliento } from "./realtimeTypes";
 
 // El login nativo todavía no está implementado. No abrir sockets sin Firebase.
 export function useDesafioRealtime(

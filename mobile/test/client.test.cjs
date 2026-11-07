@@ -1,5 +1,5 @@
 /* global __dirname */
-const { loadVersion } = require("./version-loader.cjs");
+const { loadVersion } = require("./versionLoader.cjs");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");

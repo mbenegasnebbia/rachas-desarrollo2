@@ -1,21 +1,27 @@
-import { useState } from "react";
 import { Redirect } from "expo-router";
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { View } from "react-native";
+
 import { completarPerfil } from "@/api/personas";
-import { useSesion } from "@/session/Sesion";
-import { useAccion } from "@/hooks/useCarga";
 import { mensajeErrorAuth } from "@/auth/session";
 import {
+  Encabezado,
+  IconoCircular,
   Aviso,
   Boton,
   Campo,
   EstadoCarga,
   Pantalla,
-  estilos,
-} from "@/components/UI";
+  useEstilos,
+} from "@/components/ui";
+import { Texto } from "@/components/ui/texto";
+import { useAccion } from "@/hooks/useCarga";
+import { useSesion } from "@/session/sesion";
 import { validarPerfil } from "@/utils/validaciones";
 
 export default function Ingreso() {
+  const estilos = useEstilos();
+
   const sesion = useSesion();
   const accion = useAccion();
   const [alias, setAlias] = useState("");
@@ -24,7 +30,12 @@ export default function Ingreso() {
   if (sesion.persona?.perfilCompleto) return <Redirect href="/(tabs)" />;
   return (
     <Pantalla>
-      <Text style={estilos.titulo}>Un hábito, día a día.</Text>
+      <IconoCircular icono="fuego" tono="acento" tamano="grande" />
+      <Encabezado
+        principal
+        titulo="Un hábito, día a día."
+        descripcion="Pequeños pasos para algo grande. Bienvenido a Rachas."
+      />
       <EstadoCarga
         cargando={sesion.cargando}
         error={sesion.error}
@@ -50,10 +61,10 @@ export default function Ingreso() {
       ) : null}
       {!sesion.cargando && sesion.persona ? (
         <View style={estilos.tarjeta}>
-          <Text style={estilos.subtitulo}>Completá tu perfil</Text>
-          <Text style={estilos.texto}>
+          <Texto variante="tarjetaTitulo">Completá tu perfil</Texto>
+          <Texto style={estilos.texto}>
             Elegí un alias para participar en Rachas.
-          </Text>
+          </Texto>
           <Campo
             etiqueta="Alias (3 a 20 letras, números o guion bajo)"
             value={alias}
@@ -98,7 +109,7 @@ export default function Ingreso() {
       {sesion.usuarioFirebase ? (
         <Boton
           titulo="Cerrar sesión"
-          secundario
+          variante="peligro"
           disabled={accion.ocupado || sesion.cargando}
           onPress={() => void accion.ejecutar(() => sesion.guardar(null))}
         />

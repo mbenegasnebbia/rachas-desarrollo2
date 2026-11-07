@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
-const { loadVersion } = require("./version-loader.cjs");
+const { loadVersion } = require("./versionLoader.cjs");
 test("version headers come from the application, not Expo Go", () => {
   assert.deepEqual(loadVersion().appHeaders(), {
     "x-app-version": "1.1.0",

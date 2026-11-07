@@ -1,4 +1,4 @@
-import { useAnalytics } from "@/analytics/AnalyticsProvider";
+import { useAnalytics } from "@/analytics/analyticsProvider";
 import { track, analyticsContext } from "@/analytics/runtime";
 import {
   useCallback,
@@ -17,7 +17,7 @@ import {
   onUpgrade,
   type VersionPolicy,
 } from "@/api/version";
-import { Boton, estilos, Pantalla } from "./UI";
+import { Boton, estilos, Pantalla } from "./ui";
 
 export function VersionGate({ children }: { children: ReactNode }) {
   const analytics = useAnalytics();

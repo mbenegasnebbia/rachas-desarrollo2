@@ -1,16 +1,25 @@
 import { useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
-import { Boton, estilos } from "./UI";
+import { Modal, Pressable, View } from "react-native";
+
+import { Boton, useEstilos } from "@/components/ui";
+import { Texto } from "@/components/ui/texto";
+import { useTema } from "@/theme/useTema";
 import { fechaVisible, moverDia } from "@/utils/fechas";
+
+interface Props {
+  etiqueta: string;
+  valor: string;
+  cambiar: (v: string) => void;
+}
+
 export function FechaSelector({
   etiqueta,
   valor,
   cambiar,
-}: {
-  etiqueta: string;
-  valor: string;
-  cambiar: (v: string) => void;
-}) {
+}: Props) {
+  const tema = useTema();
+  const estilos = useEstilos();
+
   const [abierto, setAbierto] = useState(false),
     [mes, setMes] = useState(valor.slice(0, 7));
   const primero = mes + "-01";
@@ -24,8 +33,8 @@ export function FechaSelector({
     setMes(d.toISOString().slice(0, 7));
   }
   return (
-    <View style={{ gap: 6 }}>
-      <Text style={estilos.etiqueta}>{etiqueta}</Text>
+    <View style={{ gap: tema.espacios.sm }}>
+      <Texto style={estilos.etiqueta}>{etiqueta}</Texto>
       <Boton
         titulo={fechaVisible(valor)}
         onPress={() => {
@@ -44,28 +53,46 @@ export function FechaSelector({
           style={{
             flex: 1,
             justifyContent: "center",
-            padding: 20,
-            backgroundColor: "#0008",
+            padding: tema.espacios.xl,
+            backgroundColor: tema.colores.velo,
           }}
         >
-          <View style={estilos.tarjeta}>
+          <View
+            style={[
+              estilos.tarjeta,
+              {
+                width: "100%",
+                maxWidth: tema.medidas.anchoContenido,
+                alignSelf: "center",
+              },
+            ]}
+          >
             <View style={[estilos.fila, { justifyContent: "space-between" }]}>
-              <Boton titulo="‹" onPress={() => moverMes(-1)} />
-              <Text style={estilos.subtitulo}>{mes}</Text>
-              <Boton titulo="›" onPress={() => moverMes(1)} />
+              <Boton
+                titulo="‹"
+                accessibilityLabel="Mes anterior"
+                onPress={() => moverMes(-1)}
+              />
+              <Texto style={estilos.subtitulo}>{mes}</Texto>
+              <Boton
+                titulo="›"
+                accessibilityLabel="Mes siguiente"
+                onPress={() => moverMes(1)}
+              />
             </View>
             <View style={{ flexDirection: "row" }}>
               {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
-                <Text
+                <Texto
                   key={i}
                   style={{
                     width: "14.28%",
                     textAlign: "center",
-                    fontWeight: "600",
+                    ...tema.tipografia.etiqueta,
+                    color: tema.colores.texto,
                   }}
                 >
                   {d}
-                </Text>
+                </Texto>
               ))}
             </View>
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
@@ -84,25 +111,27 @@ export function FechaSelector({
                     }}
                     style={{
                       width: "14.28%",
-                      minHeight: 44,
+                      minHeight: tema.medidas.toqueMinimo,
                       justifyContent: "center",
                       alignItems: "center",
-                      borderRadius: 8,
-                      backgroundColor: seleccionado ? "#256448" : "transparent",
+                      borderRadius: tema.radios.control,
+                      backgroundColor: seleccionado
+                        ? tema.colores.primario
+                        : tema.colores.transparente,
                     }}
                   >
-                    <Text
+                    <Texto
                       style={{
-                        fontSize: 16,
+                        ...tema.tipografia.cuerpo,
                         color: seleccionado
-                          ? "#FFF"
+                          ? tema.colores.sobrePrimario
                           : dia.startsWith(mes)
-                            ? "#222C27"
-                            : "#879183",
+                            ? tema.colores.texto
+                            : tema.colores.textoSecundario,
                       }}
                     >
                       {Number(dia.slice(-2))}
-                    </Text>
+                    </Texto>
                   </Pressable>
                 );
               })}
