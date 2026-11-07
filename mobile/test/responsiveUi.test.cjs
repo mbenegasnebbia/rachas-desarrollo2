@@ -125,14 +125,14 @@ test("Detalle prioritizes check-in and progress before ranking, with secondary s
   assert.equal(header.includes("Alientos"), false);
   const footer = text(h.expand(list.props.ListFooterComponent));
   assert.ok(
-    footer.indexOf("Mand\u00e1 un aliento") < footer.indexOf("Participantes"),
+    footer.indexOf("Mand\u00e1 un aliento") <
+      footer.indexOf("Invitar personas"),
   );
   assert.ok(
-    footer.indexOf("Participantes") < footer.indexOf("Invitar personas"),
+    footer.indexOf("Invitar personas") < footer.indexOf("Participantes"),
   );
   assert.ok(
-    footer.indexOf("Invitar personas") <
-      footer.indexOf("Historial de actividad"),
+    footer.indexOf("Participantes") < footer.indexOf("Historial de actividad"),
   );
 });
 

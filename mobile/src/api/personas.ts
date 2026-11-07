@@ -16,9 +16,12 @@ export const actualizarPersona = (
 ) => request<Persona>(`/personas/${id}`, { method: "PATCH", body });
 export const resumen = async (
   zonaHoraria = "America/Argentina/Buenos_Aires",
+  expectedUid?: string,
 ) => {
   const context = analyticsContext();
-  const result = await request<Resumen[]>("/personas/me/resumen");
+  const result = await request<Resumen[]>("/personas/me/resumen", {
+    expectedUid,
+  });
   try {
     observeStreaks(result, hoy(zonaHoraria), context);
   } catch {

@@ -10,10 +10,7 @@ interface Props {
   personaId?: string;
 }
 
-export function EtiquetasDesafio({
-  desafio,
-  personaId,
-}: Props) {
+export function EtiquetasDesafio({ desafio, personaId }: Props) {
   const estilos = useEstilos();
 
   const estado = estadoDe(desafio);
@@ -38,7 +35,7 @@ export function EtiquetasDesafio({
             : completo
               ? "Desafío completo"
               : !participa
-                ? "Con cupo · Unión con código sujeta a validación"
+                ? "Con cupo · Requiere aprobación del creador"
                 : "",
       ]
         .filter(Boolean)

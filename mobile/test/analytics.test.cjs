@@ -396,7 +396,6 @@ test("API instrumentation emits only after success and never includes free text"
     }),
     response,
   );
-  await api.unirse("PRIVATE");
   assert.deepEqual(
     tracked.map(([name, props]) => ({ name, props })),
     [
@@ -404,12 +403,11 @@ test("API instrumentation emits only after success and never includes free text"
         name: "desafio_creado",
         props: { desafio_id: challenge, categoria: "SALUD" },
       },
-      { name: "desafio_unido", props: { desafio_id: challenge } },
     ],
   );
   reject = true;
   await assert.rejects(api.crearDesafio({ nombre: "private" }));
-  assert.equal(tracked.length, 2);
+  assert.equal(tracked.length, 1);
   assert.ok(tracked.every((args) => args[2] === 7));
   const checks = compile("api/checkins.ts", deps);
   reject = false;
@@ -418,7 +416,7 @@ test("API instrumentation emits only after success and never includes free text"
     nota: "private note",
     valor: 5,
   });
-  assert.deepEqual(tracked[2][1], { desafio_id: challenge });
+  assert.deepEqual(tracked[1][1], { desafio_id: challenge });
 });
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));

@@ -43,27 +43,27 @@ test("Crear preserves validated payload and navigation; invalid form never calls
 test("code entry keeps normalization and rejects wrong challenge code before API", async () => {
   const h = harness({ states: [" abc123 "] });
   const tree = h.render(
-    "@/components/desafios/unirseFormulario.tsx",
+    "@/components/desafios/solicitarAccesoFormulario.tsx",
     {
       codigoEsperado: "ABC123",
-      alUnirse: (d) => h.calls.push(["joined", d.id]),
+      alSolicitar: (d) => h.calls.push(["requested", d.id]),
     },
-    "UnirseFormulario",
+    "SolicitarAccesoFormulario",
   );
-  action(tree, "Unirme").props.onPress();
+  action(tree, "Solicitar acceso").props.onPress();
   await Promise.all(h.pending);
   assert.deepEqual(h.calls, [
-    ["unirse", "ABC123"],
-    ["joined", "d1"],
+    ["solicitar", "ABC123", "fake"],
+    ["requested", "s1"],
   ]);
   const bad = harness({ states: ["ZZZZZZ"] });
   action(
     bad.render(
-      "@/components/desafios/unirseFormulario.tsx",
-      { codigoEsperado: "ABC123", alUnirse() {} },
-      "UnirseFormulario",
+      "@/components/desafios/solicitarAccesoFormulario.tsx",
+      { codigoEsperado: "ABC123", alSolicitar() {} },
+      "SolicitarAccesoFormulario",
     ),
-    "Unirme",
+    "Solicitar acceso",
   ).props.onPress();
   await assert.rejects(bad.pending[0]);
   assert.equal(bad.calls.length, 0);

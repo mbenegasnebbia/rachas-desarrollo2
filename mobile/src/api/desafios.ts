@@ -1,6 +1,12 @@
 import { track, analyticsContext } from "@/analytics/runtime";
 import { request } from "./client";
-import type { Desafio, CrearDesafio, Pagina, Ranking, Persona } from "@/types";
+import type {
+  Desafio,
+  CrearDesafio,
+  Pagina,
+  Ranking,
+  Participante,
+} from "@/types";
 export const listarDesafios = (pagina = 1, estado = "", categoria = "") =>
   request<Pagina<Desafio>>(
     `/desafios?pagina=${pagina}&limite=10&estado=${estado}&categoria=${categoria}`.replace(
@@ -22,21 +28,12 @@ export const crearDesafio = async (body: CrearDesafio) => {
 };
 export const editarDesafio = (id: string, body: Partial<CrearDesafio>) =>
   request<Desafio>(`/desafios/${id}`, { method: "PATCH", body });
-export const unirse = async (codigo: string) => {
-  const context = analyticsContext();
-  const result = await request<Desafio>(
-    `/desafios/unirse/${encodeURIComponent(codigo.trim().toUpperCase())}`,
-    { method: "POST" },
-  );
-  track("desafio_unido", { desafio_id: result.id }, context);
-  return result;
-};
 export const abandonar = (id: string) =>
   request<Desafio>(`/desafios/${id}/abandonar`, { method: "POST" });
 export const cancelar = (id: string) =>
   request<Desafio>(`/desafios/${id}/cancelar`, { method: "PATCH" });
 export const participantes = (id: string) =>
-  request<Persona[]>(`/desafios/${id}/participantes`);
+  request<Participante[]>(`/desafios/${id}/participantes`);
 export const ranking = async (id: string) => {
   const context = analyticsContext();
   const result = await request<Ranking>(`/desafios/${id}/ranking`);

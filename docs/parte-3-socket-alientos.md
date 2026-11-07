@@ -98,9 +98,8 @@ cuando las ejecuta el operador. No se realizaron durante las pruebas automática
 
 1. API completa en 3000 con seed/auto-init desactivados. Abrir Expo Web con A y
    otro navegador/incógnito con B. Completar ambos perfiles.
-2. A crea un desafío activo y B se une por código. Abrir Detalle en ambos:
-   debe indicar Tiempo real: Conectado. Una cuenta no participante no debe
-   poder suscribirse a esa sala.
+2. A crea un desafío activo, B solicita acceso y A debe aprobarlo antes de que B participe.
+   Abrir Detalle en ambos: debe indicar Tiempo real: Conectado. Una cuenta no participante no debe poder suscribirse a esa sala.
 3. A registra hoy: B debe ver el ranking/puntos/racha actualizados sin refrescar.
    Deshacer desde A debe actualizar nuevamente a B.
 4. Enviar 👏 desde A: B ve emoji y nombre de A. Intentar reenviar antes de
@@ -119,42 +118,3 @@ Backend: TypeScript sin emisión, ESLint sin --fix y npm test -- --runInBand --n
 Mobile: TypeScript, ESLint y node --test test/*.test.cjs.
 Las pruebas usan modelos, verificadores y sockets simulados. No E2E, seeds ni
 escrituras contra Atlas. El recorrido visual de dos cuentas queda manual.
-
-## Archivos de esta etapa
-
-- `backend/.env.example`
-- `backend/package-lock.json`
-- `backend/package.json`
-- `backend/src/app.module.ts`
-- `backend/src/auth/auth.module.ts`
-- `backend/src/auth/auth.service.spec.ts`
-- `backend/src/auth/auth.service.ts`
-- `backend/src/auth/firebase-auth.guard.spec.ts`
-- `backend/src/auth/firebase-auth.guard.ts`
-- `backend/src/auth/firebase-persona.service.ts`
-- `backend/src/checkins/checkins.controller.spec.ts`
-- `backend/src/checkins/checkins.controller.ts`
-- `backend/src/checkins/checkins.module.ts`
-- `backend/src/desafios/desafios.controller.spec.ts`
-- `backend/src/desafios/desafios.controller.ts`
-- `backend/src/desafios/desafios.module.ts`
-- `backend/src/realtime/aliento-limiter.service.spec.ts`
-- `backend/src/realtime/aliento-limiter.service.ts`
-- `backend/src/realtime/http-events.spec.ts`
-- `backend/src/realtime/realtime-events.module.ts`
-- `backend/src/realtime/realtime-events.service.ts`
-- `backend/src/realtime/realtime.gateway.spec.ts`
-- `backend/src/realtime/realtime.gateway.ts`
-- `backend/src/realtime/realtime.module.spec.ts`
-- `backend/src/realtime/realtime.module.ts`
-- `backend/src/realtime/socket-access.service.spec.ts`
-- `backend/src/realtime/socket-access.service.ts`
-- `backend/src/realtime/socket-policy.ts`
-- `docs/parte-3-socket-alientos.md`
-- `mobile/package-lock.json`
-- `mobile/package.json`
-- `mobile/src/app/desafio/[id].tsx`
-- `mobile/src/hooks/realtime.types.ts`
-- `mobile/src/hooks/useDesafioRealtime.ts`
-- `mobile/src/hooks/useDesafioRealtime.web.ts`
-- `mobile/test/realtime.test.cjs`

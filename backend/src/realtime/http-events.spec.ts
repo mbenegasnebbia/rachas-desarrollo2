@@ -1,3 +1,4 @@
+import type { SolicitudesAccesoService } from '../desafios/solicitudesAcceso.service';
 import { jest } from '@jest/globals';
 import { Types } from 'mongoose';
 import { CheckinsController } from '../checkins/checkins.controller';
@@ -22,6 +23,7 @@ describe('Publicación después de operaciones HTTP exitosas', () => {
       cancel: operation,
     } as unknown as DesafiosService,
     bus,
+    { solicitar: operation } as unknown as SolicitudesAccesoService,
   );
   beforeEach(() => {
     publish.mockReset();
@@ -33,12 +35,15 @@ describe('Publicación después de operaciones HTTP exitosas', () => {
       () => checkins.create(id.toString(), 'persona', { fecha: '2026-11-06' }),
     ],
     ['checkin:deshecho', () => checkins.undo(id.toString(), 'persona')],
-    ['participante:unido', () => desafios.join('COD123', 'persona')],
     ['participante:abandono', () => desafios.leave(id.toString(), 'persona')],
     ['desafio:cancelado', () => desafios.cancel(id.toString(), 'persona')],
   ] as const)('emite %s tras persistir', async (event, execute) => {
     await execute();
     expect(publish).toHaveBeenCalledWith(id.toString(), event, 'persona');
+  });
+  it('solicitar por codigo no emite una incorporacion', () => {
+    expect(() => desafios.join()).toThrow();
+    expect(publish).not.toHaveBeenCalled();
   });
   it('no emite si el servicio rechaza la operación', async () => {
     operation.mockRejectedValue(new Error('rechazado'));

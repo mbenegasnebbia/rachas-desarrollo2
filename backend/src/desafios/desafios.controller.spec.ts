@@ -1,3 +1,4 @@
+import { SolicitudesAccesoService } from './solicitudesAcceso.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DesafiosController } from './desafios.controller';
@@ -11,6 +12,7 @@ describe('DesafiosController', () => {
       controllers: [DesafiosController],
       providers: [
         { provide: DesafiosService, useValue: {} },
+        { provide: SolicitudesAccesoService, useValue: {} },
         { provide: RealtimeEventsService, useValue: { publish: () => {} } },
       ],
     }).compile();
