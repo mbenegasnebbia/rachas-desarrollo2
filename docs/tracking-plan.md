@@ -210,34 +210,3 @@ puede leer el consentimiento propio y registrar un aviso obligatorio sin montar
 la sesión ni las rutas de negocio de Rachas. GET consent no crea una Persona.
 Todos los envíos usan el cliente HTTP existente con Bearer y una comprobación
 adicional del UID esperado antes/después de obtener el token del SDK.
-
-## Archivos creados
-
-- backend/src/analytics/analytics.module.ts
-- backend/src/analytics/analytics.schema.ts
-- backend/src/analytics/analytics.service.ts
-- backend/src/analytics/analytics.spec.ts
-- backend/src/analytics/events.ts
-- mobile/src/analytics/AnalyticsProvider.tsx
-- mobile/src/analytics/queue.ts
-- mobile/src/analytics/runtime.ts
-- mobile/test/analytics.test.cjs
-- docs/tracking-plan.md
-
-## Archivos modificados
-
-- README.md
-- backend/.env.example
-- backend/src/app.module.ts
-- backend/src/personas/schemas/persona.schema.ts
-- backend/src/versioning/versioning.module.ts
-- mobile/src/api/checkins.ts
-- mobile/src/api/client.ts
-- mobile/src/api/desafios.ts
-- mobile/src/api/personas.ts
-- mobile/src/app/(tabs)/index.tsx
-- mobile/src/app/(tabs)/perfil.tsx
-- mobile/src/app/_layout.tsx
-- mobile/src/auth/session.ts
-- mobile/src/auth/session.web.ts
-- mobile/src/components/VersionGate.tsx

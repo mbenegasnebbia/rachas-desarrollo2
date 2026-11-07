@@ -182,9 +182,10 @@ no una respuesta 200 que Mobile viejo pueda confundir con un Desafio incorporado
 No hay ruta alternativa que incorpore mediante codigo. Esto tambien evita que el cliente
 antiguo registre un exito de incorporacion en Analytics al recibir solo PENDING.
 
-Mobile no se modifico: ingreso por codigo mostrara error hasta que consuma POST
-/solicitudes y las consultas/aprobaciones. Coordinar el despliegue con esa siguiente
-etapa y la politica habitual de versiones; no se inventa una version minima nueva aqui.
+Mobile consume los endpoints de solicitudes de acceso mediante /v2.
+El ingreso por codigo genera una solicitud pendiente de aprobacion.
+La incorporacion al desafio se confirma unicamente despues de la aprobacion
+del creador.
 Firebase y Analytics siguen intactos. No hay notificaciones ni cambios de puntos/rachas.
 
 ## Verificacion aislada
@@ -215,5 +216,4 @@ inclusion una sola vez y repetir PATCH; rechazar/cancelar otras solicitudes; com
 
 GET /desafios/:id/participantes devuelve exclusivamente id, nombre y alias; no expone
 email ni ajustes de perfil. La lista de solicitudes conserva su contrato minimo.
-Resultados, correcciones y plan de validacion real: [auditoriaSolicitudes.md](auditoriaSolicitudes.md).
 La compatibilidad real de Atlas y sus indices efectivos siguen pendientes; no se ejecutaron operaciones remotas.

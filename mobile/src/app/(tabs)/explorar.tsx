@@ -17,6 +17,7 @@ import {
 import { Texto } from "@/components/ui/texto";
 import { useCarga } from "@/hooks/useCarga";
 import { useSesion } from "@/session/sesion";
+import { useTema } from "@/theme/useTema";
 
 const categorias = [
   "",
@@ -36,6 +37,7 @@ const estados = [
 ] as const;
 export default function Explorar() {
   const estilos = useEstilos();
+  const tema = useTema();
 
   const [categoria, setCategoria] = useState<string>(""),
     [estado, setEstado] = useState<string>(""),
@@ -74,6 +76,7 @@ export default function Explorar() {
       >
         <Texto style={estilos.etiqueta}>Categoría</Texto>
         <Opciones
+          variante="seleccion"
           valores={categorias}
           valor={categoria}
           cambiar={(v) => {
@@ -81,8 +84,11 @@ export default function Explorar() {
             setPagina(1);
           }}
         />
-        <Texto style={estilos.etiqueta}>Estado</Texto>
+        <Texto style={[estilos.etiqueta, { marginTop: tema.espacios.sm }]}>
+          Estado
+        </Texto>
         <Opciones
+          variante="acento"
           valores={estados}
           valor={estado}
           cambiar={(v) => {

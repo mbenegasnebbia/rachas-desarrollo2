@@ -254,6 +254,7 @@ export default function Detalle() {
               {participa && vigente ? (
                 <Alientos activo={activo} realtime={realtime} />
               ) : null}
+              <Invitacion desafio={d} vigente={vigente} participa={participa} />
               <SeccionExpandible
                 titulo="Participantes"
                 resumen={d.participantes.length + " personas"}
@@ -267,7 +268,6 @@ export default function Detalle() {
                   </Texto>
                 ))}
               </SeccionExpandible>
-              <Invitacion desafio={d} vigente={vigente} participa={participa} />
               <SeccionExpandible
                 titulo="Historial de actividad"
                 resumen="Consultá tus registros"

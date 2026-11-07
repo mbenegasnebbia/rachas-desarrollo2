@@ -66,7 +66,7 @@ test("Alientos keeps inactive, disconnected, sending and cooldown guards", () =>
     if (patch.estado) assert.ok(action(tree, "Reconectar"));
   }
 });
-test("invitation is collapsed initially and copies the original code and message with a local clipboard", async () => {
+test("invitation is visible immediately and copies the original code and message with a local clipboard", async () => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator"),
     copied = [];
   Object.defineProperty(globalThis, "navigator", {
@@ -76,12 +76,18 @@ test("invitation is collapsed initially and copies the original code and message
   try {
     const h = harness(),
       props = { desafio, vigente: true, participa: true };
-    let tree = h.render("@/components/desafios/invitacion", props, "Invitacion");
-    assert.equal(action(tree, "Copiar c\u00f3digo"), undefined);
-    nodes(tree)
-      .find((n) => n.type === "Pressable")
-      .props.onPress();
-    tree = h.render("@/components/desafios/invitacion", props, "Invitacion");
+    let tree = h.render(
+      "@/components/desafios/invitacion",
+      props,
+      "Invitacion",
+    );
+    assert.ok(action(tree, "Copiar c\u00f3digo"));
+    assert.equal(
+      nodes(tree).some(
+        (n) => n.props.accessibilityState?.expanded !== undefined,
+      ),
+      false,
+    );
     action(tree, "Copiar c\u00f3digo").props.onPress();
     await Promise.all(h.pending);
     action(tree, "Copiar mensaje de invitaci\u00f3n").props.onPress();
