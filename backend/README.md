@@ -96,3 +96,10 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+
+## Solicitudes de acceso
+
+El ingreso inmediato por codigo se reemplaza por aprobacion del creador.
+[Contratos, indices y concurrencia](docs/solicitudesAcceso.md).
+Mobile se integra en la siguiente etapa; la ruta antigua responde 410.

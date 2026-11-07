@@ -3,6 +3,9 @@ import { Types } from 'mongoose';
 
 @Schema()
 export class Desafio {
+  @Prop({ default: 0, select: false })
+  solicitudesVersion!: number;
+
   @Prop({ required: true, minlength: 3, maxlength: 60 })
   nombre!: string;
 
@@ -47,6 +50,8 @@ export class Desafio {
 }
 
 export const DesafioSchema = SchemaFactory.createForClass(Desafio);
+DesafioSchema.index({ creador: 1, _id: -1 });
+DesafioSchema.index({ participantes: 1, cancelado: 1, fechaFin: 1 });
 
 DesafioSchema.set('toJSON', {
   virtuals: true,
@@ -58,6 +63,7 @@ DesafioSchema.set('toJSON', {
     >;
     delete resultado._id;
     delete resultado.__v;
+    delete resultado.solicitudesVersion;
     return resultado;
   },
 });

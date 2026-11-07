@@ -40,8 +40,33 @@ const detail = {
   tabla: { items: [posicion], ganador: null },
   historia: { items: [], paginas: 0 },
 };
+const solicitud = {
+  id: "s1",
+  desafio: {
+    id: desafio.id,
+    nombre: desafio.nombre,
+    categoria: desafio.categoria,
+  },
+  solicitante: { id: persona.id, nombre: persona.nombre, alias: persona.alias },
+  estado: "PENDING",
+  solicitadaEn: "2026-11-06T12:00:00.000Z",
+  resueltaEn: null,
+  resueltaPor: null,
+};
+class ApiError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
 function harness({
   datos = [],
+  cargas = [],
+  apiSolicitudes = {},
+  apiPersonas = {},
+  accionReal = false,
+  cargaReal = false,
+  focoEstable = false,
   states = [],
   session = {},
   analytics = {},
@@ -56,6 +81,14 @@ function harness({
 } = {}) {
   const consultas = [];
   const effects = [];
+  const focusEffects = [];
+  const refs = [];
+  const callbacks = [];
+  const focosAplicados = [];
+  let callbackCursor = 0;
+  let inicioFocos = 0;
+  let refCursor = 0,
+    cargaCursor = 0;
   const calls = [],
     pending = [],
     cache = new Map(),
@@ -82,9 +115,20 @@ function harness({
     });
   const react = {
     useEffect: (fn) => effects.push(fn),
-    useCallback: (fn) => fn,
+    useCallback: (fn, deps) => {
+      if (!focoEstable) return fn;
+      const index = callbackCursor++;
+      const anterior = callbacks[index];
+      if (!anterior || deps.some((v, i) => !Object.is(v, anterior.deps[i])))
+        callbacks[index] = { fn, deps };
+      return callbacks[index].fn;
+    },
     useMemo: (fn) => fn(),
-    useRef: (current) => ({ current }),
+    useRef: (current) => {
+      const index = refCursor++;
+      if (!(index in refs)) refs[index] = { current };
+      return refs[index];
+    },
     createContext: (value) => ({ Provider: "Provider", value }),
     useContext: () => fonts,
     useState: (initial) => {
@@ -138,6 +182,7 @@ function harness({
     "expo-status-bar": { StatusBar: "StatusBar" },
     "expo-router": {
       router,
+      useFocusEffect: (fn) => focusEffects.push(fn),
       Redirect: "Redirect",
       Stack: makeNav("Stack"),
       Tabs: makeNav("Tabs"),
@@ -158,9 +203,11 @@ function harness({
       analyticsContext: () => 1,
       track: record("track", undefined),
     },
-    "@/api/client": { API_URL: "https://example.invalid" },
+    "@/api/client": { API_URL: "https://example.invalid", ApiError },
     "@/api/version": require("../versionLoader.cjs").loadVersion(),
-    ...(versionGate ? { "@/components/versionGate": { VersionGate: "VersionGate" } } : {}),
+    ...(versionGate
+      ? { "@/components/versionGate": { VersionGate: "VersionGate" } }
+      : {}),
     "@/session/sesion": {
       SesionProvider: "SesionProvider",
       useSesion: () => ({
@@ -175,20 +222,32 @@ function harness({
       }),
     },
     "@/hooks/useCarga": {
-      useCarga: (consulta) => {
+      useCarga: (consulta, contexto) => {
         consultas.push(consulta);
-        return { datos, cargando, error, cargar: refresh };
+        if (cargaReal)
+          return load("./hooks/useCarga.ts").useCarga(consulta, contexto);
+        const index = cargaCursor++;
+        return {
+          datos: index === 0 ? datos : [],
+          cargando,
+          error,
+          cargar: refresh,
+          ...cargas[index],
+        };
       },
-      useAccion: () => ({
-        ocupado: false,
-        error: "",
-        limpiarError() {},
-        ejecutar: (fn) => {
-          const promise = Promise.resolve().then(fn);
-          pending.push(promise);
-          return promise.catch(() => {});
-        },
-      }),
+      useAccion: () =>
+        accionReal
+          ? load("./hooks/useCarga.ts").useAccion()
+          : {
+              ocupado: false,
+              error: "",
+              limpiarError() {},
+              ejecutar: (fn) => {
+                const promise = Promise.resolve().then(fn);
+                pending.push(promise);
+                return promise.catch(() => {});
+              },
+            },
     },
     "@/auth/session": { mensajeErrorAuth: (e) => e.message },
     "@/hooks/useDesafioRealtime": {
@@ -208,12 +267,42 @@ function harness({
     "@/api/desafios": {
       listarDesafios: record("listar", { items: [desafio], paginas: 1 }),
       crearDesafio: record("crear", desafio),
-      unirse: record("unirse", desafio),
       obtenerDesafio: record("obtenerDesafio", desafio),
       participantes: record("participantes", [persona]),
       ranking: record("ranking", detail.tabla),
       abandonar: record("abandonar", null),
       cancelar: record("cancelar", null),
+    },
+    "@/api/solicitudes": {
+      solicitarAcceso: record("solicitar", solicitud),
+      listarParticipaciones: record("participaciones", []),
+      listarTodasSolicitudesPropias: record("solicitudesPropias", []),
+      cancelarSolicitud: record("cancelarSolicitud", {
+        ...solicitud,
+        estado: "CANCELLED",
+      }),
+      listarCreados: record("creados", {
+        items: [desafio],
+        total: 1,
+        pagina: 1,
+        limite: 10,
+        paginas: 1,
+      }),
+      listarSolicitudesRecibidas: record("recibidas", {
+        items: [solicitud],
+        total: 1,
+        pagina: 1,
+        limite: 10,
+        paginas: 1,
+      }),
+      resolverSolicitud: async (...args) => {
+        calls.push(["resolver", ...args]);
+        return {
+          ...solicitud,
+          estado: args[2] === "aprobar" ? "APPROVED" : "REJECTED",
+        };
+      },
+      ...apiSolicitudes,
     },
     "@/api/personas": {
       resumen: record("resumen", []),
@@ -221,6 +310,7 @@ function harness({
       resultados: record("resultados", []),
       actualizarPersona: record("actualizarPersona", persona),
       completarPerfil: record("completarPerfil", persona),
+      ...apiPersonas,
     },
     "@/api/checkins": {
       checkin: record("checkin", {}),
@@ -281,10 +371,33 @@ function harness({
   }
   const render = (name, props = {}, named) => {
     cursor = 0;
+    refCursor = 0;
+    cargaCursor = 0;
+    callbackCursor = 0;
+    inicioFocos = focusEffects.length;
     const module = load(name);
     return expand((named ? module[named] : module.default)(props));
   };
-  return { load, render, calls, pending, expand, values, consultas, effects };
+  function aplicarFoco() {
+    focusEffects.slice(inicioFocos).forEach((fn, index) => {
+      if (focosAplicados[index]?.fn === fn) return;
+      focosAplicados[index]?.limpiar?.();
+      focosAplicados[index] = { fn, limpiar: fn() };
+    });
+  }
+  return {
+    aplicarFoco,
+    load,
+    render,
+    calls,
+    pending,
+    expand,
+    values,
+    consultas,
+    effects,
+    focusEffects,
+    cargas,
+  };
 }
 function nodes(node) {
   if (!node || typeof node !== "object") return [];
@@ -308,4 +421,5 @@ module.exports = {
   desafio,
   posicion,
   detail,
+  solicitud,
 };

@@ -25,10 +25,14 @@ export default function Inicio() {
   const tema = useTema();
   const local = useEstilos();
 
-  const { persona } = useSesion();
+  const { persona, usuarioFirebase } = useSesion();
   const primerNombre = primerNombreVisible(persona?.nombre);
   const carga = useCarga(
-    useCallback(() => resumen(persona?.zonaHoraria), [persona?.zonaHoraria]),
+    useCallback(
+      () => resumen(persona?.zonaHoraria, usuarioFirebase?.uid),
+      [persona?.zonaHoraria, usuarioFirebase?.uid],
+    ),
+    (persona?.id ?? "") + ":" + (usuarioFirebase?.uid ?? ""),
   );
   const accion = useAccion();
   return (
@@ -149,7 +153,8 @@ export default function Inicio() {
                     await checkin(r.desafio.id, {
                       fecha: hoy(persona?.zonaHoraria),
                       zonaHoraria:
-                        persona?.zonaHoraria ?? "America/Argentina/Buenos_Aires",
+                        persona?.zonaHoraria ??
+                        "America/Argentina/Buenos_Aires",
                     });
                     await carga.cargar();
                   })

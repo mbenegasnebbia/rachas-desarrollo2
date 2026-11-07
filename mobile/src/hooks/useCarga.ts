@@ -3,24 +3,31 @@ import { useFocusEffect } from "expo-router";
 export function mensajeError(e: unknown) {
   return e instanceof Error ? e.message : "No se pudo completar la operación.";
 }
-export function useCarga<T>(consulta: () => Promise<T>) {
-  const [datos, setDatos] = useState<T | null>(null);
+// Optional context scopes a snapshot to its account/query. Hide it immediately
+// when that context changes, even before the next focus effect starts fetching.
+export function useCarga<T>(consulta: () => Promise<T>, contexto?: string) {
+  const [instantanea, setInstantanea] = useState<{
+    contexto?: string;
+    valor: T;
+  } | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState("");
+  const [fallo, setFallo] = useState({ contexto, mensaje: "" });
   const secuencia = useRef(0);
   const cargar = useCallback(async () => {
     const turno = ++secuencia.current;
     setCargando(true);
-    setError("");
+    setFallo({ contexto, mensaje: "" });
     try {
       const resultado = await consulta();
-      if (turno === secuencia.current) setDatos(resultado);
+      if (turno === secuencia.current)
+        setInstantanea({ contexto, valor: resultado });
     } catch (e) {
-      if (turno === secuencia.current) setError(mensajeError(e));
+      if (turno === secuencia.current)
+        setFallo({ contexto, mensaje: mensajeError(e) });
     } finally {
       if (turno === secuencia.current) setCargando(false);
     }
-  }, [consulta]);
+  }, [consulta, contexto]);
   useFocusEffect(
     useCallback(() => {
       void cargar();
@@ -29,7 +36,13 @@ export function useCarga<T>(consulta: () => Promise<T>) {
       };
     }, [cargar]),
   );
-  return { datos, cargando, error, cargar };
+  return {
+    datos:
+      instantanea?.contexto === contexto ? (instantanea?.valor ?? null) : null,
+    cargando: fallo.contexto === contexto ? cargando : true,
+    error: fallo.contexto === contexto ? fallo.mensaje : "",
+    cargar,
+  };
 }
 export function useAccion() {
   const [ocupado, setOcupado] = useState(false);

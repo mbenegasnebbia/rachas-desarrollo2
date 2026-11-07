@@ -1,18 +1,29 @@
+import { SolicitudesAccesoService } from './solicitudesAcceso.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CurrentPersonaId } from '../auth/auth.decorators';
-import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Body,
+  Param,
+  GoneException,
+} from '@nestjs/common';
 
 import { ListarDesafiosDto } from './dto/listar-desafios.dto';
 import { DesafiosService } from './desafios.service';
 import { CreateDesafioDto } from './dto/create-desafio.dto';
 import { UpdateDesafioDto } from './dto/update-desafio.dto';
 import { Query } from '@nestjs/common';
+import { PaginacionDto } from '../common/paginacion.dto';
 
 @Controller('desafios')
 export class DesafiosController {
   constructor(
     private desafiosService: DesafiosService,
     private readonly events: RealtimeEventsService,
+    private readonly solicitudes: SolicitudesAccesoService,
   ) {}
 
   @Post()
@@ -26,6 +37,55 @@ export class DesafiosController {
   @Get()
   findAll(@Query() query: ListarDesafiosDto) {
     return this.desafiosService.findAll(query.estado, query.categoria, query);
+  }
+
+  @Get('creados')
+  creados(
+    @CurrentPersonaId() usuarioId: string,
+    @Query() pagina: PaginacionDto,
+  ) {
+    return this.solicitudes.creados(usuarioId, pagina);
+  }
+
+  @Get(':id/solicitudes')
+  pendientes(
+    @Param('id') id: string,
+    @CurrentPersonaId() usuarioId: string,
+    @Query() pagina: PaginacionDto,
+  ) {
+    return this.solicitudes.pendientes(id, usuarioId, pagina);
+  }
+
+  @Patch(':id/solicitudes/:solicitudId/aprobar')
+  async aprobar(
+    @Param('id') id: string,
+    @Param('solicitudId') solicitudId: string,
+    @CurrentPersonaId() usuarioId: string,
+  ) {
+    const resultado = await this.solicitudes.resolver(
+      id,
+      solicitudId,
+      usuarioId,
+      'APPROVED',
+    );
+    if (resultado.incorporado)
+      this.events.publish(
+        id,
+        'participante:unido',
+        resultado.solicitud.solicitante.id,
+      );
+    return resultado.solicitud;
+  }
+
+  @Patch(':id/solicitudes/:solicitudId/rechazar')
+  async rechazar(
+    @Param('id') id: string,
+    @Param('solicitudId') solicitudId: string,
+    @CurrentPersonaId() usuarioId: string,
+  ) {
+    return (
+      await this.solicitudes.resolver(id, solicitudId, usuarioId, 'REJECTED')
+    ).solicitud;
   }
 
   @Get(':id')
@@ -50,13 +110,10 @@ export class DesafiosController {
   }
 
   @Post('unirse/:codigo')
-  async join(
-    @Param('codigo') codigo: string,
-    @CurrentPersonaId() usuarioId: string,
-  ) {
-    const result = await this.desafiosService.join(codigo, usuarioId);
-    this.events.publish(result._id.toString(), 'participante:unido', usuarioId);
-    return result;
+  join() {
+    throw new GoneException(
+      'El ingreso inmediato fue retirado. Envia el codigo a POST /solicitudes.',
+    );
   }
 
   @Post(':id/abandonar')

@@ -15,7 +15,7 @@ import { EtiquetasDesafio } from "@/components/desafios/etiquetasDesafio";
 import { Invitacion } from "@/components/desafios/invitacion";
 import { RankingDesplegable } from "@/components/desafios/rankingDesplegable";
 import { ResumenMetricas } from "@/components/desafios/resumenMetricas";
-import { UnirseFormulario } from "@/components/desafios/unirseFormulario";
+import { SolicitarAccesoFormulario } from "@/components/desafios/solicitarAccesoFormulario";
 import {
   Tarjeta,
   Encabezado,
@@ -59,6 +59,7 @@ export default function Detalle() {
       ]);
       return { desafio, personas, tabla, historia };
     }, [id, persona, pagina]),
+    id + ":" + (persona?.id ?? "") + ":" + (sesion.usuarioFirebase?.uid ?? ""),
   );
   const accion = useAccion();
   const avance = useAccion();
@@ -121,10 +122,11 @@ export default function Detalle() {
                 <EtiquetasDesafio desafio={d} personaId={persona?.id} />
               </View>
               {!participa && vigente && !abandono && !completo && (
-                <UnirseFormulario
+                <SolicitarAccesoFormulario
+                  key={id + ":" + (persona?.id ?? "")}
                   codigoEsperado={d.codigoInvitacion}
                   disabled={ocupado || carga.cargando || !!carga.error}
-                  alUnirse={async () => {
+                  alSolicitar={async () => {
                     await carga.cargar();
                   }}
                 />
@@ -144,7 +146,10 @@ export default function Detalle() {
                     }}
                   />
                   {dia === "HOY" && propio?.checkinHoy ? (
-                    <Texto accessibilityLiveRegion="polite" tono="sobrePrimario">
+                    <Texto
+                      accessibilityLiveRegion="polite"
+                      tono="sobrePrimario"
+                    >
                       Hoy ya cumpliste.
                     </Texto>
                   ) : (
@@ -191,7 +196,8 @@ export default function Detalle() {
                               );
                             await checkin(id, {
                               zonaHoraria:
-                                persona?.zonaHoraria ?? "America/Argentina/Buenos_Aires",
+                                persona?.zonaHoraria ??
+                                "America/Argentina/Buenos_Aires",
                               fecha:
                                 dia === "HOY"
                                   ? hoy(persona?.zonaHoraria)

@@ -4,9 +4,11 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Types, type ClientSession } from 'mongoose';
 import { randomBytes } from 'crypto';
 
 import { Desafio } from './schemas/desafio.schema';
@@ -67,11 +69,6 @@ export class DesafiosService {
       throw new BadRequestException('ID de usuario inválido');
     }
 
-    const persona = await this.personaModel.findById(usuarioId);
-    if (!persona) {
-      throw new NotFoundException('Persona no encontrada');
-    }
-
     const inicio = new Date(datos.fechaInicio);
     const fin = new Date(datos.fechaFin);
     this.validarDuracion(inicio, fin);
@@ -83,57 +80,52 @@ export class DesafiosService {
       );
     }
 
-    const hoyDate = new Date(`${hoy}T00:00:00.000Z`);
-    const desafiosVigentes = await this.desafioModel.countDocuments({
-      participantes: persona._id,
-      cancelado: false,
-      fechaFin: { $gte: hoyDate },
-    });
+    return this.transaccion(async (session) => {
+      const persona = await this.bloquearPersona(usuarioId, session);
+      await this.validarLimite(persona._id, session);
 
-    if (desafiosVigentes >= 5) {
-      throw new ConflictException(
-        'La persona ya participa en 5 desafíos vigentes',
-      );
-    }
+      let codigoInvitacion: string;
+      let existe: boolean;
+      do {
+        codigoInvitacion = randomBytes(3).toString('hex').toUpperCase();
+        const desafioExistente = await this.desafioModel
+          .findOne({
+            codigoInvitacion,
+          })
+          .session(session);
+        existe = !!desafioExistente;
+      } while (existe);
 
-    let codigoInvitacion: string;
-    let existe: boolean;
-    do {
-      codigoInvitacion = randomBytes(3).toString('hex').toUpperCase();
-      const desafioExistente = await this.desafioModel.findOne({
+      const desafio = new this.desafioModel({
+        ...datos,
+        fechaInicio: inicio,
+        fechaFin: fin,
+        creador: persona._id,
+        participantes: [persona._id],
         codigoInvitacion,
       });
-      existe = !!desafioExistente;
-    } while (existe);
 
-    const desafio = new this.desafioModel({
-      ...datos,
-      fechaInicio: inicio,
-      fechaFin: fin,
-      creador: persona._id,
-      participantes: [persona._id],
-      codigoInvitacion,
-    });
-
-    try {
-      return await desafio.save();
-    } catch (error: unknown) {
-      if (
-        error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        error.code === 11000
-      ) {
-        throw new ConflictException('El código de invitación ya existe');
+      try {
+        return await desafio.save({ session });
+      } catch (error: unknown) {
+        if (
+          error &&
+          typeof error === 'object' &&
+          'code' in error &&
+          error.code === 11000
+        ) {
+          throw new ConflictException('El código de invitación ya existe');
+        }
+        throw error;
       }
-      throw error;
-    }
+    });
   }
 
   async findAll(
     estado?: string,
     categoria?: string,
     paginacion = new PaginacionDto(),
+    creador?: string,
   ) {
     if (
       estado &&
@@ -161,6 +153,7 @@ export class DesafiosService {
     const hoy = new Date(this.obtenerHoy() + 'T00:00:00Z');
     const manana = new Date(hoy.getTime() + 86400000);
     const filtro: Record<string, unknown> = categoria ? { categoria } : {};
+    if (creador) filtro.creador = new Types.ObjectId(creador);
     if (estado) {
       filtro.cancelado = estado === 'CANCELADO';
       if (estado === 'PROGRAMADO') filtro.fechaInicio = { $gte: manana };
@@ -269,18 +262,36 @@ export class DesafiosService {
       );
     }
 
-    if (datos.nombre !== undefined) desafio.nombre = datos.nombre;
-    if (datos.descripcion !== undefined)
-      desafio.descripcion = datos.descripcion;
+    const cambios: Record<string, unknown> = { ...datos };
     if (datos.fechaInicio !== undefined)
-      desafio.fechaInicio = new Date(datos.fechaInicio);
+      cambios.fechaInicio = new Date(datos.fechaInicio);
     if (datos.fechaFin !== undefined)
-      desafio.fechaFin = new Date(datos.fechaFin);
-    if (datos.maxParticipantes !== undefined) {
-      desafio.maxParticipantes = datos.maxParticipantes;
-    }
-
-    return await desafio.save();
+      cambios.fechaFin = new Date(datos.fechaFin);
+    const actualizado = await this.desafioModel.findOneAndUpdate(
+      {
+        _id: id,
+        cancelado: false,
+        fechaInicio: desafio.fechaInicio,
+        fechaFin: desafio.fechaFin,
+        ...(cambiaConfiguracion
+          ? {
+              $expr: {
+                $lte: [
+                  { $size: '$participantes' },
+                  datos.maxParticipantes ?? desafio.maxParticipantes,
+                ],
+              },
+            }
+          : {}),
+      },
+      { $set: cambios },
+      { new: true, runValidators: true },
+    );
+    if (!actualizado)
+      throw new ConflictException(
+        'El desafio cambio; consulta los datos y reintenta',
+      );
+    return actualizado;
   }
 
   async cancel(id: string, usuarioId: string) {
@@ -319,61 +330,95 @@ export class DesafiosService {
     return await desafio.save();
   }
 
-  async join(codigo: string, usuarioId: string) {
-    if (!/^[A-Z0-9]{6}$/i.test(codigo)) {
-      throw new BadRequestException('Código de invitación inválido');
-    }
-
-    if (!usuarioId || !Types.ObjectId.isValid(usuarioId)) {
-      throw new BadRequestException('ID de usuario inválido');
-    }
-
-    const persona = await this.personaModel.findById(usuarioId);
-    if (!persona) {
-      throw new NotFoundException('Persona no encontrada');
-    }
-
-    const desafio = await this.desafioModel.findOne({
-      codigoInvitacion: codigo.toUpperCase(),
-    });
-    if (!desafio) {
-      throw new NotFoundException('Código de invitación no encontrado');
-    }
-
-    const hoy = this.obtenerHoy();
-    if (desafio.cancelado || this.fechaCalendario(desafio.fechaFin) < hoy) {
-      throw new ConflictException(
-        'No se puede ingresar a un desafío finalizado o cancelado',
+  async transaccion<T>(
+    operacion: (session: ClientSession) => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await this.desafioModel.db.transaction(operacion, {
+        readConcern: { level: 'snapshot' },
+        writeConcern: { w: 'majority' },
+        readPreference: 'primary',
+      });
+    } catch (error: unknown) {
+      if (error instanceof HttpException) throw error;
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 11000
+      )
+        throw error;
+      throw new ServiceUnavailableException(
+        'No se pudo confirmar la operacion. Reintenta de forma segura.',
       );
     }
+  }
 
-    if (desafio.participantes.some((id) => id.toString() === usuarioId)) {
-      throw new ConflictException('Ya participás en este desafío');
-    }
+  async bloquearPersona(usuarioId: string, session: ClientSession) {
+    if (!Types.ObjectId.isValid(usuarioId))
+      throw new BadRequestException('ID de usuario invalido');
+    const persona = await this.personaModel.findOneAndUpdate(
+      { _id: usuarioId },
+      { $inc: { participacionVersion: 1 } },
+      { new: true, session },
+    );
+    if (!persona) throw new NotFoundException('Persona no encontrada');
+    return persona;
+  }
 
-    if (desafio.exParticipantes.some((id) => id.toString() === usuarioId)) {
+  async validarLimite(personaId: Types.ObjectId, session: ClientSession) {
+    const cantidad = await this.desafioModel
+      .countDocuments({
+        participantes: personaId,
+        cancelado: false,
+        fechaFin: { $gte: new Date(this.obtenerHoy() + 'T00:00:00Z') },
+      })
+      .session(session);
+    if (cantidad >= 5)
+      throw new ConflictException('Ya participas en 5 desafios vigentes');
+  }
+
+  async incorporarParticipante(
+    id: string,
+    usuarioId: string,
+    session: ClientSession,
+  ) {
+    const desafio = await this.desafioModel.findById(id).session(session);
+    if (!desafio) throw new NotFoundException('Desafio no encontrado');
+    this.validarIngreso(desafio, usuarioId);
+    const incorporado = await this.desafioModel.findOneAndUpdate(
+      {
+        _id: id,
+        cancelado: false,
+        fechaFin: { $gte: new Date(this.obtenerHoy() + 'T00:00:00Z') },
+        participantes: { $ne: new Types.ObjectId(usuarioId) },
+        exParticipantes: { $ne: new Types.ObjectId(usuarioId) },
+        $expr: { $lt: [{ $size: '$participantes' }, '$maxParticipantes'] },
+      },
+      { $addToSet: { participantes: new Types.ObjectId(usuarioId) } },
+      { new: true, session },
+    );
+    if (!incorporado)
+      throw new ConflictException('El desafio ya no admite esta incorporacion');
+    return incorporado;
+  }
+
+  validarIngreso(desafio: Desafio, usuarioId: string) {
+    if (
+      desafio.cancelado ||
+      this.fechaCalendario(desafio.fechaFin) < this.obtenerHoy()
+    )
+      throw new ConflictException('El desafio esta finalizado o cancelado');
+    if (desafio.creador.toString() === usuarioId)
+      throw new ConflictException('El creador no puede solicitar acceso');
+    if (desafio.participantes.some((id) => id.toString() === usuarioId))
+      throw new ConflictException('Ya participas en este desafio');
+    if (desafio.exParticipantes.some((id) => id.toString() === usuarioId))
       throw new ConflictException(
-        'No podés volver a un desafío que abandonaste',
+        'No podes volver a un desafio que abandonaste',
       );
-    }
-
-    if (desafio.participantes.length >= desafio.maxParticipantes) {
-      throw new ConflictException('El desafío ya está completo');
-    }
-
-    const hoyDate = new Date(`${hoy}T00:00:00.000Z`);
-    const cantidad = await this.desafioModel.countDocuments({
-      participantes: persona._id,
-      cancelado: false,
-      fechaFin: { $gte: hoyDate },
-    });
-
-    if (cantidad >= 5) {
-      throw new ConflictException('Ya participás en 5 desafíos vigentes');
-    }
-
-    desafio.participantes.push(persona._id);
-    return await desafio.save();
+    if (desafio.participantes.length >= desafio.maxParticipantes)
+      throw new ConflictException('El desafio ya esta completo');
   }
 
   async leave(id: string, usuarioId: string) {
@@ -412,12 +457,22 @@ export class DesafiosService {
       throw new ConflictException(
         'No se puede abandonar un desafío finalizado o cancelado',
       );
-    desafio.participantes = desafio.participantes.filter(
-      (id) => id.toString() !== usuarioId,
+    const actualizado = await this.desafioModel.findOneAndUpdate(
+      {
+        _id: id,
+        participantes: persona._id,
+        cancelado: false,
+        fechaFin: { $gte: new Date(this.obtenerHoy() + 'T00:00:00Z') },
+      },
+      {
+        $pull: { participantes: persona._id },
+        $addToSet: { exParticipantes: persona._id },
+      },
+      { new: true },
     );
-    desafio.exParticipantes.push(persona._id);
-
-    return await desafio.save();
+    if (!actualizado)
+      throw new ConflictException('El desafio o la participacion cambiaron');
+    return actualizado;
   }
 
   async findParticipantes(id: string) {
@@ -434,10 +489,15 @@ export class DesafiosService {
     }
 
     // 3. Buscar los datos de sus participantes
-    const participantes = await this.personaModel.find({
-      _id: { $in: desafio.participantes },
-    });
+    const participantes = await this.personaModel
+      .find({ _id: { $in: desafio.participantes } })
+      .select('nombre alias');
 
-    return participantes;
+    // Match the public-person contract; never serialize emails/profile settings.
+    return participantes.map((p) => ({
+      id: p._id.toString(),
+      nombre: p.nombre,
+      alias: p.alias,
+    }));
   }
 }

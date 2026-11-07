@@ -58,7 +58,13 @@ export interface CrearCheckin {
   valor?: number;
 }
 
-export type Estado = "PROGRAMADO" | "ACTIVO" | "FINALIZADO" | "CANCELADO" | "PAUSADO" | "DESCONOCIDO";
+export type Estado =
+  | "PROGRAMADO"
+  | "ACTIVO"
+  | "FINALIZADO"
+  | "CANCELADO"
+  | "PAUSADO"
+  | "DESCONOCIDO";
 export interface Pagina<T> {
   items: T[];
   total: number;
@@ -89,3 +95,17 @@ export interface Resultado {
   resultado: Posicion;
   ganador: Posicion | null;
 }
+
+export type EstadoSolicitud = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface SolicitudAcceso {
+  id: string;
+  desafio: { id: string; nombre: string | null; categoria: Categoria | null };
+  solicitante: { id: string; nombre: string | null; alias: string | null };
+  estado: EstadoSolicitud;
+  solicitadaEn: string;
+  resueltaEn: string | null;
+  resueltaPor: string | null;
+}
+
+export type Participante = Pick<Persona, "id" | "nombre" | "alias">;

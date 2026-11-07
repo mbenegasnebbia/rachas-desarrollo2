@@ -133,7 +133,7 @@ Pruebas aisladas: ranking, alientos/guardas, clipboard local, historial paginado
   recibe valores y callbacks, sin conocer desafios. components/ui.tsx conserva
   helpers genericos y reexportaciones de compatibilidad; no exporta dominio.
 - components/desafios/: alientos, etiquetasDesafio, invitacion, rankingDesplegable,
-  resumenMetricas, tarjetaDesafio y unirseFormulario. ResumenMetricas es presentacional,
+  resumenMetricas, tarjetaDesafio y solicitarAccesoFormulario. ResumenMetricas es presentacional,
   pero su contrato RACHA/PUNTOS/PUESTO pertenece a este dominio.
 - app/: rutas y pantallas; hooks/: logica reutilizable; theme/: paletas, tokens,
   estilos compartidos y useTema. Los hooks de tema permanecen junto a su tema.
@@ -154,3 +154,10 @@ Pruebas aisladas: ranking, alientos/guardas, clipboard local, historial paginado
   actualizan sin cambiar los archivos binarios.
 
 En Windows, Git puede ocultar renombres que solo cambian mayusculas con core.ignorecase=true. Revisarlos con git -c core.ignorecase=false status --short. Al preparar un commit mas adelante, usar tambien esa opcion en git add para registrar los nombres reales. Este refactor no modifica el indice ni la configuracion local de Git.
+
+
+## Solicitudes de acceso
+
+Crear conserva su formulario y agrega las pills Crear/Mis creados. La administracion
+vive en components/desafios/, sin nueva tab y sin controles administrativos en Detalle.
+Ver [contratos consumidos y validacion](../../docs/solicitudesAcceso.md).
