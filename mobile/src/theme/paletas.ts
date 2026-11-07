@@ -2,6 +2,7 @@
 export const paletas = {
   neonClub: {
     primario: "#18E65B",
+    seleccion: "#BE9BFF",
     secundario: "#BE9BFF",
     acento: "#FF641F",
     iconoSobrePrimario: "#075C29",
@@ -9,6 +10,7 @@ export const paletas = {
   },
   lilacPop: {
     primario: "#AD8BFA",
+    seleccion: "#AD8BFA",
     secundario: "#C9F46D",
     acento: "#FF641F",
     iconoSobrePrimario: "#493174",
@@ -17,6 +19,8 @@ export const paletas = {
 };
 export const neutros = {
   claro: {
+    fondoInvitacion: "#E4FBEA",
+    sobreSeleccion: "#24133D",
     fondoRanking: "#F0E8FF",
     textoRanking: "#2B1945",
     detalleRanking: "#4D2788",
@@ -49,6 +53,8 @@ export const neutros = {
     textoDeshabilitado: "#565C55",
   },
   oscuro: {
+    fondoInvitacion: "#193823",
+    sobreSeleccion: "#24133D",
     fondoRanking: "#30243E",
     textoRanking: "#F0E8FF",
     detalleRanking: "#D5BAFF",

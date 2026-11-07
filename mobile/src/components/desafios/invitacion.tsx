@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Platform, Share } from "react-native";
 
-import { Aviso, Boton, useEstilos } from "@/components/ui";
-import { SeccionExpandible } from "@/components/ui/seccionExpandible";
+import { Aviso, Boton, Encabezado, Tarjeta, useEstilos } from "@/components/ui";
 import { Texto } from "@/components/ui/texto";
+import { useTema } from "@/theme/useTema";
 import { useAccion } from "@/hooks/useCarga";
 import type { Desafio } from "@/types";
 
@@ -13,12 +13,9 @@ interface Props {
   participa: boolean;
 }
 
-export function Invitacion({
-  desafio,
-  vigente,
-  participa,
-}: Props) {
+export function Invitacion({ desafio, vigente, participa }: Props) {
   const estilos = useEstilos();
+  const tema = useTema();
 
   const accion = useAccion();
   const [aviso, setAviso] = useState("");
@@ -38,12 +35,21 @@ export function Invitacion({
     }
     setAviso(confirmacion);
   }
+  if (!participa) return null;
   return (
-    <SeccionExpandible
-      titulo="Invitar personas"
-      resumen="Compartí el código del desafío"
+    <Tarjeta
+      style={{
+        backgroundColor: tema.colores.fondoInvitacion,
+        borderColor: tema.colores.fondoInvitacion,
+      }}
     >
-      <Texto selectable variante="tarjetaTitulo">
+      <Encabezado
+        titulo="Invitar personas"
+        descripcion="Compartí el código del desafío"
+        variante="tarjetaTitulo"
+        descripcionVariante="cuerpoSecundario"
+      />
+      <Texto selectable variante="estadistica">
         Código: {desafio.codigoInvitacion}
       </Texto>
       {Platform.OS === "web" ? (
@@ -72,7 +78,7 @@ export function Invitacion({
       ) : (
         <Boton
           titulo="Compartir invitación"
-          secundario={!participa}
+          secundario
           disabled={accion.ocupado || !vigente}
           onPress={() =>
             void accion.ejecutar(async () => {
@@ -87,6 +93,6 @@ export function Invitacion({
           {aviso}
         </Texto>
       ) : null}
-    </SeccionExpandible>
+    </Tarjeta>
   );
 }

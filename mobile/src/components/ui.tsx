@@ -75,13 +75,27 @@ export function Opciones<T extends string>({
   valores,
   valor,
   cambiar,
+  variante = "primario",
 }: {
   valores: readonly T[];
   valor: T;
   cambiar: (v: T) => void;
+  variante?: "primario" | "seleccion" | "acento";
 }) {
   const tema = useTema();
   const estilos = useEstilos();
+  const fondoSeleccionado =
+    variante === "seleccion"
+      ? tema.colores.seleccion
+      : variante === "acento"
+        ? tema.colores.acento
+        : tema.colores.primario;
+  const textoSeleccionado =
+    variante === "seleccion"
+      ? tema.colores.sobreSeleccion
+      : variante === "acento"
+        ? tema.colores.sobreAcento
+        : tema.colores.sobrePrimario;
 
   return (
     <View style={estilos.fila}>
@@ -101,15 +115,12 @@ export function Opciones<T extends string>({
             justifyContent: "center",
             borderRadius: tema.radios.circular,
             backgroundColor:
-              valor === v
-                ? tema.colores.primario
-                : tema.colores.superficieSuave,
+              valor === v ? fondoSeleccionado : tema.colores.superficieSuave,
           }}
         >
           <Texto
             style={{
-              color:
-                valor === v ? tema.colores.sobrePrimario : tema.colores.texto,
+              color: valor === v ? textoSeleccionado : tema.colores.texto,
             }}
           >
             {v || "TODOS"}

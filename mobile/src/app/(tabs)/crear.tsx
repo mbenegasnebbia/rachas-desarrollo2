@@ -63,6 +63,7 @@ export default function Crear() {
               valores={
                 ["SALUD", "ESTUDIO", "FINANZAS", "BIENESTAR", "OTRO"] as const
               }
+              variante="seleccion"
               valor={categoria}
               cambiar={setCategoria}
             />
