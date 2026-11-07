@@ -1,20 +1,23 @@
-import { useState } from "react";
 import { router } from "expo-router";
-import { Text } from "react-native";
+import { useState } from "react";
+
 import { crearDesafio } from "@/api/desafios";
-import { useAccion } from "@/hooks/useCarga";
 import {
+  Encabezado,
+  IconoCircular,
+  Seccion,
   Aviso,
   Boton,
   Campo,
   Opciones,
   Pantalla,
-  estilos,
-} from "@/components/UI";
-import { FechaSelector } from "@/components/FechaSelector";
+} from "@/components/ui";
+import { FechaSelector } from "@/components/ui/fechaSelector";
+import { useAccion } from "@/hooks/useCarga";
+import type { Categoria } from "@/types";
 import { hoy, moverDia } from "@/utils/fechas";
 import { validarDesafio } from "@/utils/validaciones";
-import type { Categoria } from "@/types";
+
 export default function Crear() {
   const [nombre, setNombre] = useState(""),
     [descripcion, setDescripcion] = useState(""),
@@ -25,37 +28,50 @@ export default function Crear() {
   const accion = useAccion();
   return (
     <Pantalla>
-      <Text style={estilos.titulo}>Un nuevo comienzo</Text>
-      <Campo
-        etiqueta="Nombre (3 a 60 caracteres)"
-        value={nombre}
-        onChangeText={setNombre}
-        maxLength={60}
+      <IconoCircular icono="crear" tono="primario" tamano="grande" />
+      <Encabezado
+        principal
+        titulo="Un nuevo comienzo"
+        descripcion="Dale forma a un hábito que quieras sostener."
       />
-      <Campo
-        etiqueta="Descripción (opcional)"
-        multiline
-        value={descripcion}
-        onChangeText={setDescripcion}
-        maxLength={280}
-      />
-      <Opciones
-        valores={["SALUD", "ESTUDIO", "FINANZAS", "BIENESTAR", "OTRO"] as const}
-        valor={categoria}
-        cambiar={setCategoria}
-      />
-      <FechaSelector
-        etiqueta="Fecha de inicio"
-        valor={inicio}
-        cambiar={setInicio}
-      />
-      <FechaSelector etiqueta="Fecha de fin" valor={fin} cambiar={setFin} />
-      <Campo
-        etiqueta="Participantes (2 a 20)"
-        keyboardType="number-pad"
-        value={cupo}
-        onChangeText={setCupo}
-      />
+      <Seccion titulo="El desafío">
+        <Campo
+          etiqueta="Nombre (3 a 60 caracteres)"
+          value={nombre}
+          onChangeText={setNombre}
+          maxLength={60}
+        />
+        <Campo
+          etiqueta="Descripción (opcional)"
+          multiline
+          value={descripcion}
+          onChangeText={setDescripcion}
+          maxLength={280}
+        />
+        <Opciones
+          valores={
+            ["SALUD", "ESTUDIO", "FINANZAS", "BIENESTAR", "OTRO"] as const
+          }
+          valor={categoria}
+          cambiar={setCategoria}
+        />
+      </Seccion>
+      <Seccion titulo="Duración">
+        <FechaSelector
+          etiqueta="Fecha de inicio"
+          valor={inicio}
+          cambiar={setInicio}
+        />
+        <FechaSelector etiqueta="Fecha de fin" valor={fin} cambiar={setFin} />
+      </Seccion>
+      <Seccion titulo="Compartilo">
+        <Campo
+          etiqueta="Participantes (2 a 20)"
+          keyboardType="number-pad"
+          value={cupo}
+          onChangeText={setCupo}
+        />
+      </Seccion>
       <Aviso texto={accion.error} />
       <Boton
         titulo={accion.ocupado ? "Creando…" : "Crear desafío"}

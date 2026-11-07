@@ -1,134 +1,40 @@
-import type { ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type TextInputProps,
-} from "react-native";
-import type { Desafio } from "@/types";
-import { estadoDe, fechaVisible } from "@/utils/fechas";
-export const estilos = StyleSheet.create({
-  pantalla: { flex: 1, backgroundColor: "#F6F4F0" },
-  contenido: { padding: 20, gap: 16, paddingBottom: 40 },
-  titulo: { fontSize: 28, fontWeight: "800", color: "#222C27" },
-  subtitulo: { fontSize: 19, fontWeight: "700", color: "#222C27" },
-  texto: { fontSize: 15, color: "#4E5B52", lineHeight: 23 },
-  tarjeta: {
-    padding: 18,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: "#E4E8E1",
-  },
-  fila: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    alignItems: "center",
-  },
-  campo: {
-    borderWidth: 1,
-    borderColor: "#CCD4CA",
-    borderRadius: 10,
-    padding: 13,
-    fontSize: 16,
-    color: "#222C27",
-    backgroundColor: "#FFF",
-  },
-  boton: {
-    paddingVertical: 13,
-    paddingHorizontal: 17,
-    borderRadius: 12,
-    backgroundColor: "#256448",
-    alignItems: "center",
-  },
-  botonTexto: { color: "#FFF", fontSize: 15, fontWeight: "700" },
-  error: { color: "#A32924", fontSize: 15, lineHeight: 22 },
-  etiqueta: { fontSize: 13, color: "#4E5B52", fontWeight: "600" },
-});
-export function Pantalla({
-  children,
-  refrescar,
-  cargando = false,
-}: {
-  children: ReactNode;
-  refrescar?: () => void;
-  cargando?: boolean;
-}) {
-  return (
-    <ScrollView
-      style={estilos.pantalla}
-      contentContainerStyle={estilos.contenido}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={
-        refrescar ? (
-          <RefreshControl refreshing={cargando} onRefresh={refrescar} />
-        ) : undefined
-      }
-    >
-      {children}
-    </ScrollView>
-  );
-}
-export function Boton({
-  titulo,
-  onPress,
-  disabled = false,
-  secundario = false,
-}: {
-  titulo: string;
-  onPress: () => void;
-  disabled?: boolean;
-  secundario?: boolean;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[
-        estilos.boton,
-        secundario && {
-          backgroundColor: "#FFFFFF",
-          borderWidth: 1,
-          borderColor: "#256448",
-        },
-        disabled && { opacity: 0.45 },
-      ]}
-    >
-      <Text style={[estilos.botonTexto, secundario && { color: "#256448" }]}>
-        {titulo}
-      </Text>
-    </Pressable>
-  );
-}
-export function Campo({
-  etiqueta,
-  ...props
-}: TextInputProps & { etiqueta: string }) {
-  return (
-    <View style={{ gap: 6 }}>
-      <Text style={estilos.etiqueta}>{etiqueta}</Text>
-      <TextInput
-        accessibilityLabel={etiqueta}
-        style={estilos.campo}
-        {...props}
-      />
-    </View>
-  );
-}
+import { ActivityIndicator, Pressable, View } from "react-native";
+
+import { Boton } from "@/components/ui/boton";
+import { EstadoVacio } from "@/components/ui/estadoVacio";
+import { Tarjeta } from "@/components/ui/tarjeta";
+import { Texto } from "@/components/ui/texto";
+import { useEstilos } from "@/theme/estilos";
+import { useTema } from "@/theme/useTema";
+
+export { estilos, useEstilos } from "@/theme/estilos";
+export { Pantalla } from "@/components/ui/pantalla";
+export { Campo } from "@/components/ui/campo";
+export { Boton, Boton as BotonVisual } from "@/components/ui/boton";
+export { Tarjeta } from "@/components/ui/tarjeta";
+export { Texto } from "@/components/ui/texto";
+export { Encabezado } from "@/components/ui/encabezado";
+export { Badge } from "@/components/ui/badge";
+export { IconoCircular } from "@/components/ui/iconoCircular";
+export { Estadistica } from "@/components/ui/estadistica";
+export { Seccion } from "@/components/ui/seccion";
+export { SeccionExpandible } from "@/components/ui/seccionExpandible";
+
 export function Aviso({ texto }: { texto: string }) {
+  const tema = useTema();
+
   return texto ? (
-    <Text accessibilityRole="alert" style={estilos.error}>
-      {texto}
-    </Text>
+    <View
+      style={{
+        backgroundColor: tema.colores.fondoError,
+        padding: tema.espacios.lg,
+        borderRadius: tema.radios.control,
+      }}
+    >
+      <Texto accessibilityRole="alert" tono="error">
+        {texto}
+      </Texto>
+    </View>
   ) : null;
 }
 export function EstadoCarga({
@@ -144,73 +50,25 @@ export function EstadoCarga({
   mensajeVacio?: string;
   reintentar: () => void;
 }) {
+  const tema = useTema();
+
   return (
     <>
       {cargando && (
-        <ActivityIndicator accessibilityLabel="Cargando" color="#256448" />
+        <ActivityIndicator
+          accessibilityLabel="Cargando"
+          color={tema.colores.texto}
+        />
       )}
       {error ? (
-        <View style={estilos.tarjeta}>
+        <Tarjeta>
           <Aviso texto={error} />
           <Boton titulo="Reintentar" onPress={reintentar} />
-        </View>
+        </Tarjeta>
       ) : !cargando && vacio ? (
-        <Text style={estilos.texto}>{mensajeVacio}</Text>
+        <EstadoVacio mensaje={mensajeVacio} />
       ) : null}
     </>
-  );
-}
-export function EtiquetasDesafio({
-  desafio,
-  personaId,
-}: {
-  desafio: Desafio;
-  personaId?: string;
-}) {
-  const estado = estadoDe(desafio);
-  const participa = !!personaId && desafio.participantes.includes(personaId);
-  const abandono = !!personaId && desafio.exParticipantes.includes(personaId);
-  const cerrado = estado === "FINALIZADO" || estado === "CANCELADO";
-  const completo = desafio.participantes.length >= desafio.maxParticipantes;
-  return (
-    <Text style={estilos.etiqueta}>
-      {[
-        desafio.creador === personaId ? "Creado por vos" : participa ? "Ya participás" : "",
-        cerrado
-          ? estado === "FINALIZADO" ? "Desafío finalizado" : "Desafío cancelado"
-          : abandono
-            ? "Abandonaste este desafío · No podés volver a unirte"
-            : completo
-              ? "Desafío completo"
-              : !participa ? "Con cupo · Unión con código sujeta a validación" : "",
-      ].filter(Boolean).join(" · ")}
-    </Text>
-  );
-}
-export function TarjetaDesafio({
-  desafio,
-  abrir,
-  children,
-  personaId,
-}: {
-  desafio: Desafio;
-  abrir: () => void;
-  children?: ReactNode;
-  personaId?: string;
-}) {
-  return (
-    <View style={estilos.tarjeta}>
-      <Text style={estilos.etiqueta}>
-        {desafio.categoria} · {estadoDe(desafio)}
-      </Text>
-      <Text style={estilos.subtitulo}>{desafio.nombre}</Text>
-      <Text style={estilos.texto}>
-        {fechaVisible(desafio.fechaInicio)} — {fechaVisible(desafio.fechaFin)}
-      </Text>
-      {personaId ? <EtiquetasDesafio desafio={desafio} personaId={personaId} /> : null}
-      {children}
-      <Boton titulo="Ver desafío" onPress={abrir} secundario />
-    </View>
   );
 }
 export function Opciones<T extends string>({
@@ -222,6 +80,9 @@ export function Opciones<T extends string>({
   valor: T;
   cambiar: (v: T) => void;
 }) {
+  const tema = useTema();
+  const estilos = useEstilos();
+
   return (
     <View style={estilos.fila}>
       {valores.map((v) => (
@@ -231,14 +92,28 @@ export function Opciones<T extends string>({
           accessibilityState={{ selected: valor === v }}
           onPress={() => cambiar(v)}
           style={{
-            padding: 10,
-            borderRadius: 10,
-            backgroundColor: valor === v ? "#256448" : "#E3E9DF",
+            paddingVertical: tema.espacios.sm,
+            paddingHorizontal: tema.espacios.md,
+            borderWidth: tema.interaccion.borde,
+            borderColor:
+              valor === v ? tema.colores.texto : tema.colores.transparente,
+            minHeight: tema.medidas.toqueMinimo,
+            justifyContent: "center",
+            borderRadius: tema.radios.circular,
+            backgroundColor:
+              valor === v
+                ? tema.colores.primario
+                : tema.colores.superficieSuave,
           }}
         >
-          <Text style={{ color: valor === v ? "#FFF" : "#263B2D" }}>
+          <Texto
+            style={{
+              color:
+                valor === v ? tema.colores.sobrePrimario : tema.colores.texto,
+            }}
+          >
             {v || "TODOS"}
-          </Text>
+          </Texto>
         </Pressable>
       ))}
     </View>
@@ -255,6 +130,8 @@ export function Paginador({
   cambiar: (p: number) => void;
   disabled: boolean;
 }) {
+  const estilos = useEstilos();
+
   return (
     <View style={estilos.fila}>
       <Boton
@@ -262,9 +139,9 @@ export function Paginador({
         disabled={disabled || pagina <= 1}
         onPress={() => cambiar(pagina - 1)}
       />
-      <Text>
+      <Texto style={estilos.texto}>
         {pagina} / {Math.max(1, paginas)}
-      </Text>
+      </Texto>
       <Boton
         titulo="Siguiente"
         disabled={disabled || pagina >= paginas}

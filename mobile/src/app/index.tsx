@@ -1,8 +1,15 @@
 import { Redirect } from "expo-router";
-import { useSesion } from "@/session/Sesion";
-import { EstadoCarga, Pantalla } from "@/components/UI";
+
+import { EstadoCarga, Pantalla } from "@/components/ui";
+import { useSesion } from "@/session/sesion";
+
 export default function Entrada() {
   const s = useSesion();
-  if (s.cargando) return <Pantalla><EstadoCarga cargando error="" reintentar={s.reintentar} /></Pantalla>;
+  if (s.cargando)
+    return (
+      <Pantalla>
+        <EstadoCarga cargando error="" reintentar={s.reintentar} />
+      </Pantalla>
+    );
   return <Redirect href={s.persona?.perfilCompleto ? "/(tabs)" : "/ingreso"} />;
 }

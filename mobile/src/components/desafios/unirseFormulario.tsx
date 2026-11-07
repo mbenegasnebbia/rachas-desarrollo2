@@ -1,24 +1,32 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+
 import { unirse } from "@/api/desafios";
+import { Aviso, Boton, Campo, useEstilos } from "@/components/ui";
+import { IconoCircular } from "@/components/ui/iconoCircular";
+import { Texto } from "@/components/ui/texto";
 import { useAccion } from "@/hooks/useCarga";
 import type { Desafio } from "@/types";
-import { Aviso, Boton, Campo, estilos } from "./UI";
+
+interface Props {
+  codigoEsperado?: string;
+  disabled?: boolean;
+  alUnirse: (desafio: Desafio) => Promise<void> | void;
+}
 
 export function UnirseFormulario({
   codigoEsperado,
   disabled = false,
   alUnirse,
-}: {
-  codigoEsperado?: string;
-  disabled?: boolean;
-  alUnirse: (desafio: Desafio) => Promise<void> | void;
-}) {
+}: Props) {
+  const estilos = useEstilos();
+
   const [codigo, setCodigo] = useState("");
   const accion = useAccion();
   return (
     <View style={estilos.tarjeta}>
-      <Text style={estilos.subtitulo}>Unirme con invitación</Text>
+      <IconoCircular icono="llave" tono="secundario" variante="suave" />
+      <Texto variante="tarjetaTitulo">Unirme con invitación</Texto>
       <Campo
         etiqueta="Código de invitación"
         autoCapitalize="characters"

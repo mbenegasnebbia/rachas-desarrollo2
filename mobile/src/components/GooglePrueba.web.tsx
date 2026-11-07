@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
+
+import { obtenerAuthPrueba } from "@/auth/firebase.web";
 import {
   cerrarGooglePrueba,
   diagnosticoErrorGoogle,
@@ -7,8 +9,8 @@ import {
   resultadoErrorGoogle,
   type UsuarioGooglePrueba,
 } from "@/auth/google.web";
-import { obtenerAuthPrueba } from "@/auth/firebase.web";
-import { Aviso, Boton, estilos } from "./UI";
+
+import { Aviso, Boton, estilos } from "./ui";
 
 type Estado = "inicial" | "cargando" | "autenticado" | "cancelado" | "error";
 

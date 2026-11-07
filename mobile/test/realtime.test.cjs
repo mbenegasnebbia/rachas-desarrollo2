@@ -38,14 +38,14 @@ function harness(id = 'desafio-a') {
     useEffect: (callback) => callback(),
     useCallback: (callback) => callback,
   };
-  const types = load(fs.readFileSync(path.join(__dirname, '../src/hooks/realtime.types.ts'), 'utf8'), () => ({}));
+  const types = load(fs.readFileSync(path.join(__dirname, '../src/hooks/realtimeTypes.ts'), 'utf8'), () => ({}));
   const api = load(fs.readFileSync(path.join(__dirname, '../src/hooks/useDesafioRealtime.web.ts'), 'utf8'), (name) => {
     if (name === 'react') return react;
     if (name === 'expo-router') return { useFocusEffect: (callback) => { focus = callback; } };
     if (name === 'socket.io-client') return { io: () => socket };
     if (name === '@/auth/session') return { obtenerToken: async () => 'token-simulado' };
     if (name === '@/api/client') return { API_URL: 'http://example.invalid' };
-    if (name === './realtime.types') return types;
+    if (name === './realtimeTypes') return types;
     throw new Error('Import inesperado');
   });
   const result = api.useDesafioRealtime(id, 'persona', true, async () => { refreshes++; });

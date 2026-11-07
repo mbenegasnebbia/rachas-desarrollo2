@@ -1,20 +1,29 @@
+import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import { Text } from "react-native";
+import { View } from "react-native";
+
 import { obtenerPersona, actualizarPersona, resultados } from "@/api/personas";
-import { useSesion } from "@/session/Sesion";
-import { useCarga, useAccion } from "@/hooks/useCarga";
+import { TarjetaDesafio } from "@/components/desafios/tarjetaDesafio";
 import {
+  Encabezado,
+  IconoCircular,
+  Seccion,
   Aviso,
   Boton,
   Campo,
   EstadoCarga,
   Pantalla,
-  TarjetaDesafio,
-  estilos,
-} from "@/components/UI";
+  useEstilos,
+} from "@/components/ui";
+import { Estadistica } from "@/components/ui/estadistica";
+import { Texto } from "@/components/ui/texto";
+import { useCarga, useAccion } from "@/hooks/useCarga";
+import { useSesion } from "@/session/sesion";
 import { validarPerfil } from "@/utils/validaciones";
-import { router } from "expo-router";
+
 export default function Perfil() {
+  const estilos = useEstilos();
+
   const sesion = useSesion();
   const id = sesion.persona?.id ?? "";
   const carga = useCarga(
@@ -34,38 +43,47 @@ export default function Perfil() {
     [aviso, setAviso] = useState("");
   return (
     <Pantalla refrescar={carga.cargar} cargando={carga.cargando}>
-      <Text style={estilos.titulo}>Tu perfil</Text>
-      <Text style={estilos.texto}>@{sesion.persona?.alias}</Text>
+      <IconoCircular icono="perfil" tono="secundario" tamano="grande" />
+      <Encabezado
+        principal
+        titulo="Tu perfil"
+        descripcion="Tu ritmo, tus datos y lo que ya lograste."
+      />
+      <Texto style={estilos.texto}>@{sesion.persona?.alias}</Texto>
       <EstadoCarga {...carga} reintentar={carga.cargar} />
-      <Campo etiqueta="Nombre" value={nombre} onChangeText={setNombre} />
-      <Campo
-        etiqueta="Zona horaria IANA"
-        autoCapitalize="none"
-        value={zona}
-        onChangeText={setZona}
-      />
-      <Aviso texto={accion.error} />
-      <Text style={estilos.texto}>{aviso}</Text>
-      <Boton
-        titulo="Guardar cambios"
-        disabled={accion.ocupado}
-        onPress={() =>
-          void accion.ejecutar(async () => {
-            setAviso("");
-            validarPerfil(nombre, zona);
-            await sesion.guardar(
-              await actualizarPersona(id, {
-                nombre: nombre.trim(),
-                zonaHoraria: zona,
-              }),
-            );
-            setAviso("Perfil actualizado.");
-          })
-        }
-      />
-      <Text style={estilos.subtitulo}>Desafíos finalizados</Text>
+      <Seccion titulo="Tus datos">
+        <Campo etiqueta="Nombre" value={nombre} onChangeText={setNombre} />
+        <Campo
+          etiqueta="Zona horaria IANA"
+          autoCapitalize="none"
+          value={zona}
+          onChangeText={setZona}
+        />
+        <Aviso texto={accion.error} />
+        <Texto style={estilos.texto}>{aviso}</Texto>
+        <Boton
+          titulo="Guardar cambios"
+          disabled={accion.ocupado}
+          onPress={() =>
+            void accion.ejecutar(async () => {
+              setAviso("");
+              validarPerfil(nombre, zona);
+              await sesion.guardar(
+                await actualizarPersona(id, {
+                  nombre: nombre.trim(),
+                  zonaHoraria: zona,
+                }),
+              );
+              setAviso("Perfil actualizado.");
+            })
+          }
+        />
+      </Seccion>
+      <Texto accessibilityRole="header" style={estilos.subtitulo}>
+        Desafíos finalizados
+      </Texto>
       {carga.datos?.resultados.length === 0 && (
-        <Text style={estilos.texto}>Todavía no terminaste ningún desafío.</Text>
+        <Texto style={estilos.texto}>Todavía no terminaste ningún desafío.</Texto>
       )}
       {carga.datos?.resultados.map((r) => (
         <TarjetaDesafio
@@ -78,18 +96,31 @@ export default function Perfil() {
             })
           }
         >
-          <Text style={estilos.texto}>
-            Puesto {r.resultado?.posicion} · {r.resultado?.puntos} puntos ·
-            Mejor racha {r.resultado?.mejorRacha}
-          </Text>
-          <Text style={estilos.texto}>
+          <View style={estilos.estadisticas}>
+            <Estadistica
+              valor={r.resultado?.posicion ?? "—"}
+              etiqueta="puesto"
+              icono="trofeo"
+            />
+            <Estadistica
+              valor={r.resultado?.puntos ?? "—"}
+              etiqueta="puntos"
+              icono="puntos"
+            />
+            <Estadistica
+              valor={r.resultado?.mejorRacha ?? "—"}
+              etiqueta="mejor racha"
+              icono="fuego"
+            />
+          </View>
+          <Texto style={estilos.texto}>
             Ganador: @{r.ganador?.alias ?? "sin participantes"}
-          </Text>
+          </Texto>
         </TarjetaDesafio>
       ))}
       <Boton
         titulo="Cerrar sesión"
-        secundario
+        variante="peligro"
         disabled={accion.ocupado}
         onPress={() =>
           void accion.ejecutar(async () => {

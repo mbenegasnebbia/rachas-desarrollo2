@@ -1,18 +1,23 @@
-import { useCallback, useState } from "react";
 import { router } from "expo-router";
-import { Text } from "react-native";
+import { useCallback, useState } from "react";
+
 import { listarDesafios } from "@/api/desafios";
-import { UnirseFormulario } from "@/components/UnirseFormulario";
-import { useSesion } from "@/session/Sesion";
-import { useCarga } from "@/hooks/useCarga";
+import { TarjetaDesafio } from "@/components/desafios/tarjetaDesafio";
+import { UnirseFormulario } from "@/components/desafios/unirseFormulario";
 import {
+  Encabezado,
+  IconoCircular,
+  SeccionExpandible,
   EstadoCarga,
   Opciones,
   Paginador,
   Pantalla,
-  TarjetaDesafio,
-  estilos,
-} from "@/components/UI";
+  useEstilos,
+} from "@/components/ui";
+import { Texto } from "@/components/ui/texto";
+import { useCarga } from "@/hooks/useCarga";
+import { useSesion } from "@/session/sesion";
+
 const categorias = [
   "",
   "SALUD",
@@ -29,6 +34,8 @@ const estados = [
   "CANCELADO",
 ] as const;
 export default function Explorar() {
+  const estilos = useEstilos();
+
   const [categoria, setCategoria] = useState<string>(""),
     [estado, setEstado] = useState<string>(""),
     [pagina, setPagina] = useState(1);
@@ -41,30 +48,41 @@ export default function Explorar() {
   const { persona } = useSesion();
   return (
     <Pantalla refrescar={carga.cargar} cargando={carga.cargando}>
-      <Text style={estilos.titulo}>Encontrá tu próximo desafío</Text>
+      <IconoCircular icono="explorar" tono="primario" tamano="grande" />
+      <Encabezado
+        principal
+        titulo="Encontrá tu próximo desafío"
+        descripcion="Elegí tu próximo pequeño gran paso."
+      />
       <UnirseFormulario
         alUnirse={(d) =>
           router.push({ pathname: "/desafio/[id]", params: { id: d.id } })
         }
       />
-      <Text style={estilos.etiqueta}>Categoría</Text>
-      <Opciones
-        valores={categorias}
-        valor={categoria}
-        cambiar={(v) => {
-          setCategoria(v);
-          setPagina(1);
-        }}
-      />
-      <Text style={estilos.etiqueta}>Estado</Text>
-      <Opciones
-        valores={estados}
-        valor={estado}
-        cambiar={(v) => {
-          setEstado(v);
-          setPagina(1);
-        }}
-      />
+      <SeccionExpandible
+        titulo="Filtros"
+        resumen="Por categoría y estado"
+        inicialmenteExpandida
+      >
+        <Texto style={estilos.etiqueta}>Categoría</Texto>
+        <Opciones
+          valores={categorias}
+          valor={categoria}
+          cambiar={(v) => {
+            setCategoria(v);
+            setPagina(1);
+          }}
+        />
+        <Texto style={estilos.etiqueta}>Estado</Texto>
+        <Opciones
+          valores={estados}
+          valor={estado}
+          cambiar={(v) => {
+            setEstado(v);
+            setPagina(1);
+          }}
+        />
+      </SeccionExpandible>
       <EstadoCarga
         {...carga}
         vacio={carga.datos?.items.length === 0}

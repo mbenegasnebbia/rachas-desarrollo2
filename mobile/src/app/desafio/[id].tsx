@@ -1,8 +1,8 @@
-import { useDesafioRealtime } from "@/hooks/useDesafioRealtime";
-import { EMOJIS } from "@/hooks/realtime.types";
-import { useCallback, useState } from "react";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import { Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { View } from "react-native";
+
+import { checkin, deshacer, historial } from "@/api/checkins";
 import {
   abandonar,
   cancelar,
@@ -10,24 +10,34 @@ import {
   participantes,
   ranking,
 } from "@/api/desafios";
-import { Invitacion } from "@/components/Invitacion";
-import { UnirseFormulario } from "@/components/UnirseFormulario";
-import { checkin, deshacer, historial } from "@/api/checkins";
-import { useSesion } from "@/session/Sesion";
-import { useCarga, useAccion } from "@/hooks/useCarga";
+import { Alientos } from "@/components/desafios/alientos";
+import { EtiquetasDesafio } from "@/components/desafios/etiquetasDesafio";
+import { Invitacion } from "@/components/desafios/invitacion";
+import { RankingDesplegable } from "@/components/desafios/rankingDesplegable";
+import { ResumenMetricas } from "@/components/desafios/resumenMetricas";
+import { UnirseFormulario } from "@/components/desafios/unirseFormulario";
 import {
+  Tarjeta,
+  Encabezado,
+  Badge,
+  SeccionExpandible,
   Aviso,
   Boton,
   Campo,
   EstadoCarga,
-  EtiquetasDesafio,
   Opciones,
   Paginador,
-  Pantalla,
-  estilos,
-} from "@/components/UI";
+  useEstilos,
+} from "@/components/ui";
+import { Texto } from "@/components/ui/texto";
+import { useCarga, useAccion } from "@/hooks/useCarga";
+import { useDesafioRealtime } from "@/hooks/useDesafioRealtime";
+import { useSesion } from "@/session/sesion";
 import { estadoDe, fechaVisible, hoy, moverDia } from "@/utils/fechas";
+
 export default function Detalle() {
+  const estilos = useEstilos();
+
   const { id: parametro } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(parametro) ? parametro[0] : parametro;
   const sesion = useSesion(),
@@ -61,235 +71,272 @@ export default function Detalle() {
   const participa = !!persona && !!d?.participantes.includes(persona.id);
   const abandono = !!persona && !!d?.exParticipantes.includes(persona.id);
   const completo = !!d && d.participantes.length >= d.maxParticipantes;
-  const realtime = useDesafioRealtime(id, persona?.id, participa && vigente, carga.cargar);
-  if (!sesion.cargando && !persona?.perfilCompleto) return <Redirect href="/ingreso" />;
+  const realtime = useDesafioRealtime(
+    id,
+    persona?.id,
+    participa && vigente,
+    carga.cargar,
+  );
+  if (!sesion.cargando && !persona?.perfilCompleto)
+    return <Redirect href="/ingreso" />;
   return (
-    <Pantalla refrescar={carga.cargar} cargando={carga.cargando}>
-      <EstadoCarga {...carga} reintentar={carga.cargar} />
-      <Aviso texto={accion.error} />
-      {d && (
+    <RankingDesplegable
+      key={id + ":" + (persona?.id ?? "")}
+      tabla={tabla}
+      personaId={persona?.id}
+      refrescar={carga.cargar}
+      cargando={carga.cargando}
+      encabezado={
         <>
-          <Text style={estilos.titulo}>{d.nombre}</Text>
-          <Text style={estilos.texto}>
-            {d.categoria} · {estadoDe(d)}
-          </Text>
-          <Text style={estilos.texto}>
-            {d.descripcion || "Sin descripción."}
-          </Text>
-          <Text style={estilos.texto}>
-            {fechaVisible(d.fechaInicio)} — {fechaVisible(d.fechaFin)}
-          </Text>
-          <Text style={estilos.texto}>
-            {d.participantes.length}/{d.maxParticipantes} participantes
-          </Text>
-          <EtiquetasDesafio desafio={d} personaId={persona?.id} />
-          {!participa && vigente && !abandono && !completo && (
-            <UnirseFormulario
-              codigoEsperado={d.codigoInvitacion}
-              disabled={ocupado || carga.cargando || !!carga.error}
-              alUnirse={async () => {
-                await carga.cargar();
-              }}
-            />
-          )}
-          <Invitacion desafio={d} vigente={vigente} participa={participa} />
-          <Text style={estilos.subtitulo}>Participantes</Text>
-          {carga.datos?.personas.length === 0 && (
-            <Text style={estilos.texto}>Sin participantes.</Text>
-          )}
-          {carga.datos?.personas.map((p) => (
-            <Text key={p.id} style={estilos.texto}>
-              {p.nombre} · @{p.alias}
-            </Text>
-          ))}
-          {participa && vigente ? (
-            <View style={estilos.tarjeta}>
-              <Text style={estilos.subtitulo}>Alientos</Text>
-              <Text style={estilos.texto}>Tiempo real: {realtime.estado}</Text>
-              <Aviso texto={realtime.error} />
-              {realtime.estado !== "Conectado" ? (
-                <Boton titulo="Reconectar" secundario onPress={realtime.reconectar} />
-              ) : null}
-              <View style={estilos.fila}>
-                {EMOJIS.map((emoji) => (
-                  <Boton key={emoji} titulo={emoji} secundario
-                    disabled={!activo || realtime.estado !== "Conectado" || realtime.enviando || realtime.enEspera}
-                    onPress={() => realtime.enviar(emoji)} />
-                ))}
-              </View>
-              <Text accessibilityLiveRegion="polite" style={estilos.texto}>
-                {realtime.enEspera ? "Esperá antes de volver a alentar (10 segundos entre envíos)." : realtime.aviso}
-              </Text>
-              {realtime.alientos.map((aliento) => (
-                <Text key={aliento.id} accessibilityLiveRegion="polite" style={estilos.texto}>
-                  {aliento.emoji} {aliento.nombre} envió un aliento
-                </Text>
-              ))}
-            </View>
-          ) : null}
-          <Text style={estilos.subtitulo}>Ranking</Text>
-          {tabla?.items.length === 0 && (
-            <Text style={estilos.texto}>
-              Todavía no hay participantes en el ranking.
-            </Text>
-          )}
-          {tabla?.items.map((p) => (
-            <View key={p.personaId} style={estilos.tarjeta}>
-              <Text style={estilos.subtitulo}>
-                {p.posicion}. @{p.alias} · {p.puntos} puntos
-              </Text>
-              <Text style={estilos.texto}>
-                Racha actual {p.rachaActual} · Mejor racha {p.mejorRacha}
-              </Text>
-            </View>
-          ))}
-          {tabla?.ganador && (
-            <Text style={estilos.subtitulo}>
-              Ganador: @{tabla.ganador.alias}
-            </Text>
-          )}
-          {participa && activo && (
-            <View style={estilos.tarjeta}>
-              <Text style={estilos.subtitulo}>Registrar tu avance</Text>
-              <Aviso texto={avance.error} />
-              <Opciones
-                valores={["HOY", "AYER"]}
-                valor={dia}
-                cambiar={(nuevoDia) => {
-                  setDia(nuevoDia);
-                  avance.limpiarError();
-                }}
-              />
-              <Campo
-                etiqueta="Nota (opcional, hasta 140 caracteres)"
-                value={nota}
-                onChangeText={(texto) => {
-                  setNota(texto);
-                  avance.limpiarError();
-                }}
-                maxLength={140}
-              />
-              <Campo
-                etiqueta="Valor numérico (opcional)"
-                keyboardType="decimal-pad"
-                value={valor}
-                onChangeText={(texto) => {
-                  setValor(texto);
-                  avance.limpiarError();
-                }}
-              />
-              <Boton
-                titulo={
-                  dia === "HOY" && propio?.checkinHoy
-                    ? "Hoy ya cumpliste"
-                    : "Guardar check-in"
-                }
-                disabled={
-                  ocupado || (dia === "HOY" && propio?.checkinHoy)
-                }
-                onPress={() =>
-                  void avance.ejecutar(async () => {
-                    const numero = valor.trim()
-                      ? Number(valor.replace(",", "."))
-                      : undefined;
-                    if (numero !== undefined && !Number.isFinite(numero))
-                      throw new Error("Ingresá un valor numérico válido.");
-                    await checkin(id, {
-                      fecha:
-                        dia === "HOY"
-                          ? hoy(persona?.zonaHoraria)
-                          : moverDia(hoy(persona?.zonaHoraria), -1),
-                      nota: nota || undefined,
-                      valor: numero,
-                    });
-                    setNota("");
-                    setValor("");
-                    setPagina(1);
-                    await carga.cargar();
-                  })
-                }
-              />
-              <Boton
-                titulo="Deshacer check-in de hoy"
-                secundario
-                disabled={ocupado || !propio?.checkinHoy}
-                onPress={() =>
-                  void avance.ejecutar(async () => {
-                    await deshacer(id);
-                    await carga.cargar();
-                  })
-                }
-              />
-            </View>
-          )}
-          <Text style={estilos.subtitulo}>Tus días cumplidos</Text>
-          {carga.datos?.historia.items.length === 0 && (
-            <Text style={estilos.texto}>Todavía no registraste check-ins.</Text>
-          )}
-          {carga.datos?.historia.items.map((c) => (
-            <View key={c.id} style={estilos.tarjeta}>
-              <Text style={estilos.subtitulo}>
-                {fechaVisible(c.fecha)} · {c.puntos ?? 0} puntos
-              </Text>
-              <Text style={estilos.texto}>
-                {c.nota || "Sin nota"}
-                {c.valor !== undefined ? " · Valor: " + c.valor : ""}
-              </Text>
-            </View>
-          ))}
-          <Paginador
-            pagina={pagina}
-            paginas={carga.datos?.historia.paginas ?? 0}
-            cambiar={setPagina}
-            disabled={carga.cargando}
-          />
-          {participa && vigente && (
-            <View style={estilos.tarjeta}>
-              <Boton
-                titulo={
-                  d.creador === persona?.id
-                    ? "Cancelar desafío"
-                    : "Abandonar desafío"
-                }
-                secundario
-                disabled={ocupado}
-                onPress={() =>
-                  setConfirmacion(
-                    d.creador === persona?.id ? "cancelar" : "abandonar",
-                  )
-                }
-              />
-              {!!confirmacion && (
-                <>
-                  <Text style={estilos.texto}>
-                    {confirmacion === "cancelar"
-                      ? "Se cerrará el desafío para todas las personas."
-                      : "Conservarás tu historial, pero no podrás volver a unirte."}
-                  </Text>
-                  <Boton
-                    titulo="Confirmar"
-                    disabled={ocupado}
-                    onPress={() =>
-                      void accion.ejecutar(async () => {
-                        if (confirmacion === "cancelar") await cancelar(id);
-                        else await abandonar(id);
-                        setConfirmacion("");
-                        router.replace("/(tabs)");
-                      })
+          <EstadoCarga {...carga} reintentar={carga.cargar} />
+          <Aviso texto={accion.error} />
+          {d && (
+            <>
+              <View style={estilos.grupo}>
+                <Encabezado variante="desafioTitulo" titulo={d.nombre} />
+                <View style={estilos.fila}>
+                  <Badge texto={d.categoria} />
+                  <Badge
+                    texto={estadoDe(d)}
+                    tono={
+                      activo
+                        ? "exito"
+                        : estadoDe(d) === "PROGRAMADO"
+                          ? "advertencia"
+                          : estadoDe(d) === "CANCELADO"
+                            ? "error"
+                            : "neutro"
                     }
                   />
-                  <Boton
-                    titulo="Volver"
-                    secundario
-                    disabled={ocupado}
-                    onPress={() => setConfirmacion("")}
-                  />
-                </>
+                </View>
+                <Texto style={estilos.texto}>
+                  {d.descripcion || "Sin descripción."}
+                </Texto>
+                <Texto variante="cuerpoSecundario" tono="textoSecundario">
+                  {fechaVisible(d.fechaInicio)} — {fechaVisible(d.fechaFin)}
+                </Texto>
+                <Texto variante="cuerpoSecundario" tono="textoSecundario">
+                  {d.participantes.length}/{d.maxParticipantes} participantes
+                </Texto>
+                <EtiquetasDesafio desafio={d} personaId={persona?.id} />
+              </View>
+              {!participa && vigente && !abandono && !completo && (
+                <UnirseFormulario
+                  codigoEsperado={d.codigoInvitacion}
+                  disabled={ocupado || carga.cargando || !!carga.error}
+                  alUnirse={async () => {
+                    await carga.cargar();
+                  }}
+                />
               )}
-            </View>
+              {participa && activo && (
+                <Tarjeta tono="primario">
+                  <Texto variante="tarjetaTitulo" tono="sobrePrimario">
+                    Tu check-in
+                  </Texto>
+                  <Aviso texto={avance.error} />
+                  <Opciones
+                    valores={["HOY", "AYER"]}
+                    valor={dia}
+                    cambiar={(nuevoDia) => {
+                      setDia(nuevoDia);
+                      avance.limpiarError();
+                    }}
+                  />
+                  {dia === "HOY" && propio?.checkinHoy ? (
+                    <Texto accessibilityLiveRegion="polite" tono="sobrePrimario">
+                      Hoy ya cumpliste.
+                    </Texto>
+                  ) : (
+                    <>
+                      <Campo
+                        etiqueta="Nota (opcional, hasta 140 caracteres)"
+                        value={nota}
+                        onChangeText={(texto) => {
+                          setNota(texto);
+                          avance.limpiarError();
+                        }}
+                        maxLength={140}
+                      />
+                      <Campo
+                        etiqueta="Valor numérico (opcional)"
+                        keyboardType="decimal-pad"
+                        value={valor}
+                        onChangeText={(texto) => {
+                          setValor(texto);
+                          avance.limpiarError();
+                        }}
+                      />
+                      <Boton
+                        secundario
+                        titulo={
+                          dia === "HOY" && propio?.checkinHoy
+                            ? "Hoy ya cumpliste"
+                            : "Guardar check-in"
+                        }
+                        disabled={
+                          ocupado || (dia === "HOY" && propio?.checkinHoy)
+                        }
+                        onPress={() =>
+                          void avance.ejecutar(async () => {
+                            const numero = valor.trim()
+                              ? Number(valor.replace(",", "."))
+                              : undefined;
+                            if (
+                              numero !== undefined &&
+                              !Number.isFinite(numero)
+                            )
+                              throw new Error(
+                                "Ingresá un valor numérico válido.",
+                              );
+                            await checkin(id, {
+                              fecha:
+                                dia === "HOY"
+                                  ? hoy(persona?.zonaHoraria)
+                                  : moverDia(hoy(persona?.zonaHoraria), -1),
+                              nota: nota || undefined,
+                              valor: numero,
+                            });
+                            setNota("");
+                            setValor("");
+                            setPagina(1);
+                            await carga.cargar();
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                  {propio?.checkinHoy && (
+                    <>
+                      <Boton
+                        titulo="Deshacer check-in de hoy"
+                        secundario
+                        disabled={ocupado || !propio?.checkinHoy}
+                        onPress={() =>
+                          void avance.ejecutar(async () => {
+                            await deshacer(id);
+                            await carga.cargar();
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                </Tarjeta>
+              )}
+              {propio && (
+                <View style={estilos.grupo}>
+                  <Texto variante="seccionTitulo" accessibilityRole="header">
+                    Tu progreso
+                  </Texto>
+                  <ResumenMetricas
+                    racha={propio.rachaActual}
+                    puntos={propio.puntos}
+                    puesto={propio.posicion}
+                  />
+                </View>
+              )}
+            </>
           )}
         </>
-      )}
-    </Pantalla>
+      }
+      pie={
+        <>
+          {d && (
+            <>
+              {participa && vigente ? (
+                <Alientos activo={activo} realtime={realtime} />
+              ) : null}
+              <SeccionExpandible
+                titulo="Participantes"
+                resumen={d.participantes.length + " personas"}
+              >
+                {carga.datos?.personas.length === 0 && (
+                  <Texto style={estilos.texto}>Sin participantes.</Texto>
+                )}
+                {carga.datos?.personas.map((p) => (
+                  <Texto key={p.id} style={[estilos.texto, estilos.filaInfo]}>
+                    {p.nombre} · @{p.alias}
+                  </Texto>
+                ))}
+              </SeccionExpandible>
+              <Invitacion desafio={d} vigente={vigente} participa={participa} />
+              <SeccionExpandible
+                titulo="Historial de actividad"
+                resumen="Consultá tus registros"
+              >
+                {carga.datos?.historia.items.length === 0 && (
+                  <Texto style={estilos.texto}>
+                    Todavía no registraste check-ins.
+                  </Texto>
+                )}
+                {carga.datos?.historia.items.map((c) => (
+                  <View key={c.id} style={estilos.filaInfo}>
+                    <Texto variante="etiqueta">
+                      {fechaVisible(c.fecha)} · {c.puntos ?? 0} puntos
+                    </Texto>
+                    <Texto style={estilos.texto}>
+                      {c.nota || "Sin nota"}
+                      {c.valor !== undefined ? " · Valor: " + c.valor : ""}
+                    </Texto>
+                  </View>
+                ))}
+                <Paginador
+                  pagina={pagina}
+                  paginas={carga.datos?.historia.paginas ?? 0}
+                  cambiar={setPagina}
+                  disabled={carga.cargando}
+                />
+              </SeccionExpandible>
+              {participa && vigente && (
+                <View style={estilos.tarjeta}>
+                  <Boton
+                    titulo={
+                      d.creador === persona?.id
+                        ? "Cancelar desafío"
+                        : "Abandonar desafío"
+                    }
+                    variante="peligro"
+                    disabled={ocupado}
+                    onPress={() =>
+                      setConfirmacion(
+                        d.creador === persona?.id ? "cancelar" : "abandonar",
+                      )
+                    }
+                  />
+                  {!!confirmacion && (
+                    <>
+                      <Texto style={estilos.texto}>
+                        {confirmacion === "cancelar"
+                          ? "Se cerrará el desafío para todas las personas."
+                          : "Conservarás tu historial, pero no podrás volver a unirte."}
+                      </Texto>
+                      <Boton
+                        titulo="Confirmar"
+                        variante="peligro"
+                        disabled={ocupado}
+                        onPress={() =>
+                          void accion.ejecutar(async () => {
+                            if (confirmacion === "cancelar") await cancelar(id);
+                            else await abandonar(id);
+                            setConfirmacion("");
+                            router.replace("/(tabs)");
+                          })
+                        }
+                      />
+                      <Boton
+                        titulo="Volver"
+                        secundario
+                        disabled={ocupado}
+                        onPress={() => setConfirmacion("")}
+                      />
+                    </>
+                  )}
+                </View>
+              )}
+            </>
+          )}
+        </>
+      }
+    />
   );
 }

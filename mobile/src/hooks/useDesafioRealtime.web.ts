@@ -10,7 +10,7 @@ import {
   type Change,
   type ServerEvents,
   type ClientEvents,
-} from "./realtime.types";
+} from "./realtimeTypes";
 
 export function useDesafioRealtime(
   desafioIdOriginal: string,
